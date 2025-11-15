@@ -1,0 +1,31 @@
+Row,Column A,Column B,Batch 1,Batch 2,Batch 3
+1,,,,,
+2,,,,,
+3,,,,,
+4,,,,,
+5,,,,,
+6,,,,,
+7,,,,,
+8,,,,,
+9,,,,,
+10,,,,,
+11,,,,,
+12,Mixing Proportions,,0.33,0.33,0.34
+13,Parameter,Lower Limit,Upper Limit,Batch 1,Batch 2,Batch 3
+14,pH,5.5,8.5,7.2,9,7.1
+15,Arsenic,0,37,11,22,16
+16,Lead,0,200,29,77,36
+17,Zinc,0,200,123,125,121
+18,Chromium,0,100,45,55,38
+19,Copper,0,150,78,92,65
+20,Nickel,0,50,34,41,29
+21,Cadmium,0,5,1.2,2.8,1.5
+22,Mercury,0,2,0.3,0.8,0.4
+23,Selenium,0,10,3.2,5.1,4.0
+24,Barium,0,500,120,180,95
+25,Antimony,0,15,2.1,4.5,3.2
+26,Beryllium,0,8,0.9,1.8,1.2
+27,Cobalt,0,30,8.5,12.3,9.8
+28,Molybdenum,0,20,4.2,6.8,5.1
+29,Silver,0,10,0.5,1.2,0.8
+30,Thallium,0,3,0.2,0.5,0.3
