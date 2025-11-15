@@ -196,7 +196,7 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
         </div>
 
         {/* Mobile Card View */}
-        <div className="block lg:hidden space-y-4">
+        <div className="block md:hidden space-y-4">
           {Object.keys(limits).map(param => {
             if (limits[param].upper === 9999) return null
 
@@ -247,7 +247,7 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
         </div>
 
         {/* Desktop Table View */}
-        <div className="hidden lg:block overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
