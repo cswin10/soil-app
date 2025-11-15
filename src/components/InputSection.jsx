@@ -123,15 +123,15 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
     <div className="space-y-6">
       {/* Configuration Header */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3 sm:gap-4 flex-1">
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="text-slate-600 hover:text-slate-900 transition-colors"
+                className="text-slate-600 hover:text-slate-900 transition-colors flex-shrink-0"
               >
                 <svg
-                  className={`w-6 h-6 transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                  className={`w-5 h-5 sm:w-6 sm:h-6 transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -139,16 +139,16 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">Configure Soil Batches</h2>
-                <p className="text-sm text-slate-600 mt-1">
-                  {batches.length} batches configured • {Object.keys(limits).length} parameters
+              <div className="min-w-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Configure Soil Batches</h2>
+                <p className="text-xs sm:text-sm text-slate-600 mt-1">
+                  {batches.length} batches • {Object.keys(limits).length} parameters
                 </p>
               </div>
             </div>
             <button
               onClick={loadExampleData}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 text-sm sm:text-base whitespace-nowrap flex-shrink-0"
             >
               ✨ Load Example
             </button>
