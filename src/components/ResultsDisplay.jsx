@@ -182,20 +182,72 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
       </div>
 
       {/* Parameter Results Table */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex justify-between items-center mb-4">
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
           <h3 className="text-xl font-semibold text-gray-900">
             Parameter Analysis
           </h3>
           <button
             onClick={exportToCSV}
-            className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-4 rounded-md"
+            className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-4 rounded-md w-full sm:w-auto"
           >
             Export to CSV
           </button>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Mobile Card View */}
+        <div className="block lg:hidden space-y-4">
+          {Object.keys(limits).map(param => {
+            if (limits[param].upper === 9999) return null
+
+            const blended = results.blended_values[param]
+            const lower = limits[param].lower
+            const upper = limits[param].upper
+            const residual = results.residuals[param]
+            const status = getParamStatus(param, blended, residual)
+
+            return (
+              <div key={param} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                  <h4 className="text-lg font-semibold text-gray-900">{param}</h4>
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(status)}`}>
+                    {getStatusText(status)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wider">Blended</div>
+                    <div className="text-base font-semibold text-gray-900 mt-1">{blended.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wider">Limits</div>
+                    <div className="text-base text-gray-700 mt-1">{lower} - {upper}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Batch Values</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {batches.map((batch, index) => (
+                      <div key={index} className="bg-gray-50 rounded p-2">
+                        <div className="text-xs text-gray-600">{batch.name}</div>
+                        <div className="text-sm font-medium text-gray-900">{batch[param]?.toFixed(2) || 'N/A'}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="text-xs text-gray-500">Normalized Residual: <span className="font-medium text-gray-700">{residual.toFixed(4)}</span></div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -266,7 +318,7 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
           <div className="text-sm text-gray-700">
             <span className="font-semibold">Total Normalized Residual:</span>{' '}
             {results.total_residual.toFixed(4)}
-            <span className="ml-4 text-gray-500">
+            <span className="block sm:inline sm:ml-4 text-gray-500 mt-1 sm:mt-0">
               (Lower is better - represents overall distance from ideal midpoints)
             </span>
           </div>

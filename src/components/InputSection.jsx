@@ -173,71 +173,80 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
 
         {/* Parameter Input Table */}
         {isExpanded && batches.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gradient-to-r from-slate-700 to-blue-700">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider sticky left-0 bg-gradient-to-r from-slate-700 to-blue-700 z-10">
-                    Parameter
-                  </th>
-                  <th className="px-4 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">
-                    Lower Limit
-                  </th>
-                  <th className="px-4 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">
-                    Upper Limit
-                  </th>
-                  {batches.map((batch, idx) => (
-                    <th key={idx} className="px-4 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">
-                      {batch.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {DEFAULT_PARAMETERS.map((param, paramIdx) => (
-                  <tr key={param.name} className={paramIdx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
-                    <td className="px-6 py-4 whitespace-nowrap sticky left-0 z-10" style={{ backgroundColor: paramIdx % 2 === 0 ? '#f8fafc' : 'white' }}>
-                      <div className="flex items-center">
-                        <div className="text-sm font-bold text-slate-900">{param.name}</div>
-                        {param.unit && (
-                          <div className="ml-2 text-xs text-slate-500">({param.unit})</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={limits[param.name]?.lower ?? param.lower}
-                        onChange={(e) => handleLimitChange(param.name, 'lower', e.target.value)}
-                        className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-center font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={limits[param.name]?.upper ?? param.upper}
-                        onChange={(e) => handleLimitChange(param.name, 'upper', e.target.value)}
-                        className="w-24 px-3 py-2 border-2 border-slate-300 rounded-lg text-center font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </td>
-                    {batches.map((batch, batchIdx) => (
-                      <td key={batchIdx} className="px-4 py-3">
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={batch[param.name] ?? 0}
-                          onChange={(e) => handleValueChange(batchIdx, param.name, e.target.value)}
-                          className="w-24 px-3 py-2 border-2 border-blue-200 rounded-lg text-center font-semibold text-blue-900 bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </td>
+          <>
+            <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 lg:hidden">
+              <p className="text-xs text-blue-800 text-center">
+                💡 Swipe left/right to see all columns
+              </p>
+            </div>
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <table className="min-w-full">
+                  <thead className="bg-gradient-to-r from-slate-700 to-blue-700">
+                    <tr>
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-xs font-bold text-white uppercase tracking-wider sticky left-0 bg-gradient-to-r from-slate-700 to-blue-700 z-10 shadow-md">
+                        Parameter
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 sm:py-4 text-center text-xs font-bold text-white uppercase tracking-wider whitespace-nowrap">
+                        Lower Limit
+                      </th>
+                      <th className="px-2 sm:px-4 py-3 sm:py-4 text-center text-xs font-bold text-white uppercase tracking-wider whitespace-nowrap">
+                        Upper Limit
+                      </th>
+                      {batches.map((batch, idx) => (
+                        <th key={idx} className="px-2 sm:px-4 py-3 sm:py-4 text-center text-xs font-bold text-white uppercase tracking-wider whitespace-nowrap">
+                          {batch.name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-slate-200">
+                    {DEFAULT_PARAMETERS.map((param, paramIdx) => (
+                      <tr key={param.name} className={paramIdx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap sticky left-0 z-10 shadow-md" style={{ backgroundColor: paramIdx % 2 === 0 ? '#f8fafc' : 'white' }}>
+                          <div className="flex flex-col sm:flex-row sm:items-center">
+                            <div className="text-xs sm:text-sm font-bold text-slate-900">{param.name}</div>
+                            {param.unit && (
+                              <div className="sm:ml-2 text-xs text-slate-500">({param.unit})</div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3">
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={limits[param.name]?.lower ?? param.lower}
+                            onChange={(e) => handleLimitChange(param.name, 'lower', e.target.value)}
+                            className="w-16 sm:w-24 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border-2 border-slate-300 rounded-lg text-center font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3">
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={limits[param.name]?.upper ?? param.upper}
+                            onChange={(e) => handleLimitChange(param.name, 'upper', e.target.value)}
+                            className="w-16 sm:w-24 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border-2 border-slate-300 rounded-lg text-center font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </td>
+                        {batches.map((batch, batchIdx) => (
+                          <td key={batchIdx} className="px-2 sm:px-4 py-2 sm:py-3">
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={batch[param.name] ?? 0}
+                              onChange={(e) => handleValueChange(batchIdx, param.name, e.target.value)}
+                              className="w-16 sm:w-24 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border-2 border-blue-200 rounded-lg text-center font-semibold text-blue-900 bg-blue-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </td>
+                        ))}
+                      </tr>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Helper Text */}
