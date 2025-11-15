@@ -1,6 +1,6 @@
 import React from 'react'
 
-function ExportManager({ batches, limits, tolerance, results }) {
+function ExportManager({ batches, limits, tolerance, results, materialConstraints }) {
   // Export everything as JSON
   const exportCompleteScenario = () => {
     const scenario = {
@@ -8,11 +8,13 @@ function ExportManager({ batches, limits, tolerance, results }) {
       batches,
       limits,
       tolerance,
+      materialConstraints,
       results,
       metadata: {
         totalBatches: batches.length,
         totalParameters: Object.keys(limits).length,
-        hasResults: !!results
+        hasResults: !!results,
+        hasMaterialConstraints: Object.keys(materialConstraints || {}).length > 0
       }
     }
 
@@ -39,7 +41,23 @@ function ExportManager({ batches, limits, tolerance, results }) {
     rows.push(['Tolerance', `${(tolerance * 100).toFixed(1)}%`])
     rows.push(['Number of Batches', batches.length])
     rows.push(['Number of Parameters', Object.keys(limits).length])
+    rows.push(['Material Constraints Active', Object.keys(materialConstraints || {}).length > 0 ? 'Yes' : 'No'])
     rows.push([])
+
+    // Material Constraints (if any)
+    if (materialConstraints && Object.keys(materialConstraints).length > 0) {
+      rows.push(['MATERIAL CONSTRAINTS'])
+      rows.push(['Batch', 'Minimum %', 'Maximum %'])
+      batches.forEach((batch, index) => {
+        const constraint = materialConstraints[index]
+        if (constraint) {
+          const min = constraint.min !== undefined ? (constraint.min * 100).toFixed(1) : 'None'
+          const max = constraint.max !== undefined ? (constraint.max * 100).toFixed(1) : 'None'
+          rows.push([batch.name, min, max])
+        }
+      })
+      rows.push([])
+    }
 
     // Batch Data
     rows.push(['BATCH DATA'])
@@ -69,6 +87,17 @@ function ExportManager({ batches, limits, tolerance, results }) {
       rows.push(['Success', results.success ? 'Yes' : 'No'])
       rows.push(['Within Tolerance', results.within_tolerance ? 'Yes' : 'No'])
       rows.push(['Total Residual', results.total_residual?.toFixed(6) || 'N/A'])
+
+      // Calculate residual statistics
+      const residualValues = Object.values(results.residuals || {}).map(r => Math.abs(r))
+      if (residualValues.length > 0) {
+        const meanResidual = residualValues.reduce((a, b) => a + b, 0) / residualValues.length
+        const maxResidual = Math.max(...residualValues)
+        const minResidual = Math.min(...residualValues)
+        rows.push(['Mean Residual', meanResidual.toFixed(6)])
+        rows.push(['Worst (Max) Residual', maxResidual.toFixed(6)])
+        rows.push(['Best (Min) Residual', minResidual.toFixed(6)])
+      }
       rows.push([])
 
       rows.push(['MIXING RATIOS'])
@@ -198,10 +227,17 @@ function ExportManager({ batches, limits, tolerance, results }) {
         </button>
       </div>
 
-      <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-        <p className="text-xs text-blue-900">
-          <strong>Tip:</strong> Use "Scenario JSON" to save your entire setup (batches, limits, tolerance) and reload it later. Use "Full Report CSV" for documentation and sharing.
-        </p>
+      <div className="mt-4 space-y-2">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p className="text-xs text-blue-900">
+            <strong>Tip:</strong> Use "Scenario JSON" to save your entire setup (batches, limits, tolerance, constraints) and reload it later. Use "Full Report CSV" for documentation and sharing.
+          </p>
+        </div>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <p className="text-xs text-green-900">
+            <strong>Excel Users:</strong> All CSV files can be opened directly in Microsoft Excel, Google Sheets, or any spreadsheet application. The "Full Report CSV" includes comprehensive data with residuals, compliance status, and batch contributions.
+          </p>
+        </div>
       </div>
     </div>
   )

@@ -367,6 +367,105 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
         })()}
       </div>
 
+      {/* Residual Visualization - Bar Chart */}
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6 w-full max-w-full overflow-hidden">
+        <h3 className="text-xl font-semibold text-gray-900 mb-4">
+          Residual Analysis - Distance from Ideal
+        </h3>
+        <p className="text-sm text-gray-600 mb-6">
+          Visual representation of how far each parameter is from its ideal midpoint. Lower bars are better.
+        </p>
+
+        <div className="space-y-3">
+          {Object.keys(limits)
+            .filter(param => limits[param].upper !== 9999)
+            .sort((a, b) => Math.abs(results.residuals[b]) - Math.abs(results.residuals[a])) // Sort by worst first
+            .map(param => {
+              const residual = results.residuals[param]
+              const blended = results.blended_values[param]
+              const status = getParamStatus(param, blended, residual)
+
+              // Determine color based on status
+              let barColor = 'bg-green-500'
+              let bgColor = 'bg-green-50'
+              let textColor = 'text-green-900'
+
+              if (status === 'exceeds') {
+                barColor = 'bg-red-500'
+                bgColor = 'bg-red-50'
+                textColor = 'text-red-900'
+              } else if (status === 'within-limits') {
+                barColor = 'bg-yellow-500'
+                bgColor = 'bg-yellow-50'
+                textColor = 'text-yellow-900'
+              }
+
+              // Calculate percentage for visual representation (normalize to 0-100%)
+              const maxResidual = Math.max(...Object.values(results.residuals).map(r => Math.abs(r)))
+              const barWidth = maxResidual > 0 ? (Math.abs(residual) / maxResidual) * 100 : 0
+
+              return (
+                <div key={param} className={`${bgColor} rounded-lg p-3 transition-all hover:shadow-md`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-semibold ${textColor}`}>{param}</span>
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(status)}`}>
+                        {getStatusText(status)}
+                      </span>
+                    </div>
+                    <span className={`text-sm font-mono font-bold ${textColor}`}>
+                      {residual.toFixed(4)}
+                    </span>
+                  </div>
+                  <div className="relative bg-white rounded-full h-6 overflow-hidden border-2 border-gray-200">
+                    <div
+                      className={`${barColor} h-full transition-all duration-500 ease-out flex items-center justify-end pr-2`}
+                      style={{ width: `${barWidth}%` }}
+                    >
+                      {barWidth > 15 && (
+                        <span className="text-xs font-semibold text-white">
+                          {(residual * 100).toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-1 text-xs text-gray-600">
+                    Blended: {blended.toFixed(2)} | Target: {((limits[param].lower + limits[param].upper) / 2).toFixed(2)}
+                  </div>
+                </div>
+              )
+            })}
+        </div>
+
+        {/* Summary Statistics */}
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-gray-200">
+          <div className="text-center">
+            <div className="text-xs text-gray-500 uppercase tracking-wider">Mean Residual</div>
+            <div className="text-xl font-bold text-gray-900 mt-1">
+              {(Object.values(results.residuals).reduce((a, b) => a + Math.abs(b), 0) / Object.values(results.residuals).length).toFixed(4)}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-gray-500 uppercase tracking-wider">Worst Residual</div>
+            <div className="text-xl font-bold text-red-600 mt-1">
+              {Math.max(...Object.values(results.residuals).map(r => Math.abs(r))).toFixed(4)}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-gray-500 uppercase tracking-wider">Best Residual</div>
+            <div className="text-xl font-bold text-green-600 mt-1">
+              {Math.min(...Object.values(results.residuals).map(r => Math.abs(r))).toFixed(4)}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-gray-500 uppercase tracking-wider">Total Residual</div>
+            <div className="text-xl font-bold text-blue-900 mt-1">
+              {results.total_residual.toFixed(4)}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Mixing Ratios */}
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6 w-full max-w-full overflow-hidden">
         <div className="flex justify-between items-center mb-4">
