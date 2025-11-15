@@ -1,0 +1,6 @@
+Batch,pH,Arsenic,Lead,Cadmium,Chromium,Copper,Mercury,Nickel,Zinc,Selenium
+Lower Limit,5.5,0,0,0,0,0,0,0,0,0
+Upper Limit,8.5,37,200,5,100,150,2,50,200,10
+Batch 1,7.2,11,29,1.2,45,78,0.3,34,123,3.2
+Batch 2,9.0,22,77,2.8,55,92,0.8,41,125,5.1
+Batch 3,7.1,16,36,1.5,38,65,0.4,29,121,4.0
