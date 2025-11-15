@@ -2,7 +2,7 @@
  * Client-side soil mixing optimizer using Sequential Quadratic Programming approximation
  */
 
-export function optimizeMix(batches, limits, tolerance = 0.75) {
+export function optimizeMix(batches, limits, tolerance = 0.75, materialConstraints = {}) {
   const n_batches = batches.length
 
   // Get all parameter names (excluding 'name' field)
@@ -41,6 +41,15 @@ export function optimizeMix(batches, limits, tolerance = 0.75) {
     // Check all ratios >= 0 and <= 1
     if (ratios.some(r => r < 0 || r > 1)) return false
 
+    // Check material constraints (min/max bounds per batch)
+    for (let i = 0; i < n_batches; i++) {
+      const constraint = materialConstraints[i]
+      if (constraint) {
+        if (constraint.min !== undefined && ratios[i] < constraint.min) return false
+        if (constraint.max !== undefined && ratios[i] > constraint.max) return false
+      }
+    }
+
     // Check all parameters within limits
     for (const param of activeParams) {
       const blended = ratios.reduce((sum, ratio, i) => sum + ratio * batches[i][param], 0)
@@ -76,10 +85,18 @@ export function optimizeMix(batches, limits, tolerance = 0.75) {
       // Update ratios
       const newRatios = ratios.map((r, i) => r - learningRate * gradient[i])
 
-      // Project onto constraint (sum = 1, all >= 0)
-      const positiveRatios = newRatios.map(r => Math.max(0, r))
-      const sum = positiveRatios.reduce((a, b) => a + b, 0)
-      const projectedRatios = positiveRatios.map(r => r / (sum || 1))
+      // Project onto constraint (sum = 1, all >= 0, respect material constraints)
+      const boundedRatios = newRatios.map((r, i) => {
+        const constraint = materialConstraints[i]
+        let bounded = Math.max(0, r)
+        if (constraint) {
+          if (constraint.min !== undefined) bounded = Math.max(constraint.min, bounded)
+          if (constraint.max !== undefined) bounded = Math.min(constraint.max, bounded)
+        }
+        return bounded
+      })
+      const sum = boundedRatios.reduce((a, b) => a + b, 0)
+      const projectedRatios = boundedRatios.map(r => r / (sum || 1))
 
       // Check if this is better
       const currentObj = objective(projectedRatios)
