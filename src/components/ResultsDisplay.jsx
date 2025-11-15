@@ -109,8 +109,96 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
     }
   }
 
+  // Get failing parameters
+  const failingParams = Object.keys(limits).filter(param => {
+    if (limits[param].upper === 9999) return false
+    const blended = results.blended_values[param]
+    const lower = limits[param].lower
+    const upper = limits[param].upper
+    return blended < lower || blended > upper
+  })
+
+  // Get parameters within limits but outside tolerance
+  const marginalParams = Object.keys(limits).filter(param => {
+    if (limits[param].upper === 9999) return false
+    const blended = results.blended_values[param]
+    const residual = results.residuals[param]
+    const status = getParamStatus(param, blended, residual)
+    return status === 'within-limits'
+  })
+
   return (
     <div className="space-y-4 md:space-y-6 w-full max-w-full overflow-hidden">
+      {/* Failing Parameters Alert */}
+      {failingParams.length > 0 && (
+        <div className="bg-red-50 border-4 border-red-600 rounded-2xl p-6 shadow-2xl">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <svg className="w-12 h-12 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-2xl font-bold text-red-900 mb-2">
+                {failingParams.length} Parameter{failingParams.length > 1 ? 's' : ''} Exceed{failingParams.length === 1 ? 's' : ''} Legal Limits
+              </h3>
+              <p className="text-red-800 mb-4">
+                The following parameters violate regulatory screening limits. This mix cannot be used for disposal.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {failingParams.map(param => {
+                  const blended = results.blended_values[param]
+                  const lower = limits[param].lower
+                  const upper = limits[param].upper
+                  const violation = blended < lower ? `${(lower - blended).toFixed(2)} below` : `${(blended - upper).toFixed(2)} above`
+
+                  return (
+                    <div key={param} className="bg-white border-2 border-red-400 rounded-lg p-4">
+                      <div className="font-bold text-red-900 text-lg">{param}</div>
+                      <div className="mt-2 text-sm">
+                        <div className="text-red-700">
+                          <span className="font-semibold">Blended:</span> {blended.toFixed(2)}
+                        </div>
+                        <div className="text-red-700">
+                          <span className="font-semibold">Limit:</span> {lower} - {upper}
+                        </div>
+                        <div className="text-red-900 font-bold mt-1">
+                          {violation} limit
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Marginal Parameters Warning */}
+      {marginalParams.length > 0 && failingParams.length === 0 && (
+        <div className="bg-yellow-50 border-3 border-yellow-500 rounded-xl p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <svg className="w-8 h-8 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-yellow-900 mb-2">
+                {marginalParams.length} Parameter{marginalParams.length > 1 ? 's' : ''} Outside Tolerance
+              </h3>
+              <p className="text-yellow-800">
+                Within legal limits but far from ideal midpoint. Consider adjusting tolerance or batch selection.
+              </p>
+              <div className="mt-2 text-sm text-yellow-700">
+                {marginalParams.join(', ')}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Status Banner */}
       <div className={`rounded-lg p-6 ${
         results.success && results.within_tolerance

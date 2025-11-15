@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import ComplianceHeatmap from './ComplianceHeatmap'
 
 // Common soil contaminant parameters with typical regulatory limits
 const DEFAULT_PARAMETERS = [
@@ -21,6 +22,9 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
   const [isDragging, setIsDragging] = useState(false)
   const [uploadError, setUploadError] = useState(null)
   const [uploadSuccess, setUploadSuccess] = useState(null)
+  const [limitsProfiles, setLimitsProfiles] = useState([])
+  const [showProfileManager, setShowProfileManager] = useState(false)
+  const [newProfileName, setNewProfileName] = useState('')
 
   // Initialize batches and limits
   useEffect(() => {
@@ -28,6 +32,77 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
       initializeBatches(3)
     }
   }, [])
+
+  // Load saved profiles from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('soilLimitsProfiles')
+      if (saved) {
+        setLimitsProfiles(JSON.parse(saved))
+      }
+    } catch (err) {
+      console.error('Failed to load profiles:', err)
+    }
+  }, [])
+
+  // Save profile
+  const saveProfile = () => {
+    if (!newProfileName.trim()) {
+      alert('Please enter a profile name')
+      return
+    }
+
+    const profile = {
+      name: newProfileName.trim(),
+      limits: { ...limits },
+      createdAt: new Date().toISOString()
+    }
+
+    const updated = [...limitsProfiles.filter(p => p.name !== profile.name), profile]
+    setLimitsProfiles(updated)
+    localStorage.setItem('soilLimitsProfiles', JSON.stringify(updated))
+    setNewProfileName('')
+    alert(`Profile "${profile.name}" saved successfully!`)
+  }
+
+  // Load profile
+  const loadProfile = (profileName) => {
+    const profile = limitsProfiles.find(p => p.name === profileName)
+    if (profile) {
+      setLimits(profile.limits)
+      alert(`Profile "${profileName}" loaded successfully!`)
+    }
+  }
+
+  // Delete profile
+  const deleteProfile = (profileName) => {
+    if (confirm(`Delete profile "${profileName}"?`)) {
+      const updated = limitsProfiles.filter(p => p.name !== profileName)
+      setLimitsProfiles(updated)
+      localStorage.setItem('soilLimitsProfiles', JSON.stringify(updated))
+    }
+  }
+
+  // Export profile as CSV
+  const exportProfileAsCSV = (profileName) => {
+    const profile = limitsProfiles.find(p => p.name === profileName)
+    if (!profile) return
+
+    const params = Object.keys(profile.limits)
+    const headers = ['Batch', ...params]
+    const lowerRow = ['Lower Limit', ...params.map(p => profile.limits[p].lower)]
+    const upperRow = ['Upper Limit', ...params.map(p => profile.limits[p].upper)]
+
+    const csv = [headers, lowerRow, upperRow].map(row => row.join(',')).join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${profileName.replace(/[^a-z0-9]/gi, '_')}_limits.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   // Parse CSV file
   const parseCSV = (text) => {
@@ -45,7 +120,7 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
     const newLimits = {}
     const parameterNames = headers.filter((_, idx) => idx !== batchNameIndex)
 
-    // Initialize limits for discovered parameters
+    // Initialize limits with defaults
     parameterNames.forEach(paramName => {
       const defaultParam = DEFAULT_PARAMETERS.find(p => p.name === paramName)
       if (defaultParam) {
@@ -56,10 +131,62 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
       }
     })
 
+    let dataStartIndex = 1
+    let hasCustomLimits = false
+
+    // Check for optional "Lower Limit" row
+    if (lines.length > 1) {
+      const firstDataRow = lines[1].split(',').map(v => v.trim())
+      const firstRowName = firstDataRow[batchNameIndex]?.toLowerCase()
+
+      if (firstRowName === 'lower limit' || firstRowName === 'lower') {
+        hasCustomLimits = true
+        // Parse lower limits
+        headers.forEach((header, idx) => {
+          if (idx !== batchNameIndex) {
+            const value = parseFloat(firstDataRow[idx])
+            if (!isNaN(value)) {
+              if (!newLimits[header]) newLimits[header] = { lower: 0, upper: 9999 }
+              newLimits[header].lower = value
+            }
+          }
+        })
+        dataStartIndex = 2
+      }
+    }
+
+    // Check for optional "Upper Limit" row
+    if (hasCustomLimits && lines.length > 2) {
+      const secondDataRow = lines[2].split(',').map(v => v.trim())
+      const secondRowName = secondDataRow[batchNameIndex]?.toLowerCase()
+
+      if (secondRowName === 'upper limit' || secondRowName === 'upper') {
+        // Parse upper limits
+        headers.forEach((header, idx) => {
+          if (idx !== batchNameIndex) {
+            const value = parseFloat(secondDataRow[idx])
+            if (!isNaN(value)) {
+              if (!newLimits[header]) newLimits[header] = { lower: 0, upper: 9999 }
+              newLimits[header].upper = value
+            }
+          }
+        })
+        dataStartIndex = 3
+      }
+    }
+
     // Parse data rows
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = dataStartIndex; i < lines.length; i++) {
       const values = lines[i].split(',').map(v => v.trim())
       const batchName = values[batchNameIndex]
+
+      // Skip if batch name looks like a limit row
+      const nameLower = batchName?.toLowerCase()
+      if (nameLower === 'lower limit' || nameLower === 'upper limit' ||
+          nameLower === 'lower' || nameLower === 'upper') {
+        continue
+      }
+
       const batch = { name: batchName }
 
       headers.forEach((header, idx) => {
@@ -72,7 +199,11 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
       newBatches.push(batch)
     }
 
-    return { batches: newBatches, limits: newLimits }
+    if (newBatches.length === 0) {
+      throw new Error('No batch data found. Make sure you have data rows after any limit rows.')
+    }
+
+    return { batches: newBatches, limits: newLimits, hasCustomLimits }
   }
 
   // Handle file upload
@@ -91,12 +222,14 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
 
     try {
       const text = await file.text()
-      const { batches: newBatches, limits: newLimits } = parseCSV(text)
+      const { batches: newBatches, limits: newLimits, hasCustomLimits } = parseCSV(text)
 
       setBatches(newBatches)
       setLimits(newLimits)
       setNumBatches(newBatches.length)
-      setUploadSuccess(`Successfully loaded ${newBatches.length} batches with ${Object.keys(newLimits).length} parameters`)
+
+      const limitsMsg = hasCustomLimits ? ' with custom limits' : ''
+      setUploadSuccess(`Successfully loaded ${newBatches.length} batches with ${Object.keys(newLimits).length} parameters${limitsMsg}`)
 
       // Clear success message after 5 seconds
       setTimeout(() => setUploadSuccess(null), 5000)
@@ -331,16 +464,111 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
             </div>
             <pre className="text-xs text-blue-800 bg-white p-3 rounded border border-blue-200 overflow-x-auto">
 {`Batch,pH,Arsenic,Lead,Cadmium
+Lower Limit,5.5,0,0,0
+Upper Limit,8.5,37,200,5
 Batch 1,7.2,11,29,1.2
 Batch 2,9.0,22,77,2.8
 Batch 3,7.1,16,36,1.5`}
             </pre>
             <p className="text-xs text-blue-700 mt-2">
-              First column must be named "Batch" or "Name". Other columns will be matched to parameters.
+              First column must be "Batch" or "Name". Optional "Lower Limit" and "Upper Limit" rows set custom screening limits. If omitted, default regulatory limits are used.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Limits Profile Manager */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 overflow-hidden w-full max-w-full">
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">Screening Limits Profiles</h2>
+              <p className="text-xs sm:text-sm text-slate-600 mt-1">
+                Save and load different screening limit sets (e.g., S4UL, C4UL, BS3882)
+              </p>
+            </div>
+            <button
+              onClick={() => setShowProfileManager(!showProfileManager)}
+              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 text-sm whitespace-nowrap"
+            >
+              {showProfileManager ? 'Hide' : 'Manage Profiles'}
+            </button>
+          </div>
+
+          {showProfileManager && (
+            <div className="space-y-4">
+              {/* Save New Profile */}
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl p-4">
+                <h3 className="font-semibold text-emerald-900 mb-3">Save Current Limits as Profile</h3>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    placeholder="Profile name (e.g., S4UL, C4UL, Custom)"
+                    value={newProfileName}
+                    onChange={(e) => setNewProfileName(e.target.value)}
+                    className="flex-1 px-4 py-2 border-2 border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    onKeyPress={(e) => e.key === 'Enter' && saveProfile()}
+                  />
+                  <button
+                    onClick={saveProfile}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    Save Profile
+                  </button>
+                </div>
+              </div>
+
+              {/* Saved Profiles List */}
+              {limitsProfiles.length > 0 ? (
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-slate-900">Saved Profiles ({limitsProfiles.length})</h3>
+                  {limitsProfiles.map(profile => (
+                    <div key={profile.name} className="bg-slate-50 border-2 border-slate-200 rounded-lg p-3 sm:p-4">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="flex-1">
+                          <h4 className="font-bold text-slate-900">{profile.name}</h4>
+                          <p className="text-xs text-slate-600 mt-1">
+                            {Object.keys(profile.limits).length} parameters • Created {new Date(profile.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => loadProfile(profile.name)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+                          >
+                            Load
+                          </button>
+                          <button
+                            onClick={() => exportProfileAsCSV(profile.name)}
+                            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+                          >
+                            Export CSV
+                          </button>
+                          <button
+                            onClick={() => deleteProfile(profile.name)}
+                            className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-slate-50 border-2 border-slate-200 rounded-lg p-6 text-center">
+                  <p className="text-slate-600">No saved profiles yet. Adjust the screening limits in the manual entry section below, then save them as a profile.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Compliance Heatmap */}
+      {batches.length > 0 && Object.keys(limits).length > 0 && (
+        <ComplianceHeatmap batches={batches} limits={limits} />
+      )}
 
       {/* Configuration Header - Manual Entry */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 overflow-hidden w-full max-w-full">
