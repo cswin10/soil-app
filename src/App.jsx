@@ -32,7 +32,7 @@ function App() {
   const canOptimize = batches.length >= 2 && Object.keys(limits).length > 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 overflow-x-hidden">
       {/* Header */}
       <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">

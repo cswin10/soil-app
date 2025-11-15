@@ -120,9 +120,9 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Configuration Header */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 overflow-hidden w-full max-w-full">
         <div className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-3 sm:gap-4 flex-1">
@@ -174,12 +174,12 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
         {/* Parameter Input Table */}
         {isExpanded && batches.length > 0 && (
           <>
-            <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 lg:hidden">
+            <div className="px-4 py-2 bg-blue-50 border-t border-blue-100">
               <p className="text-xs text-blue-800 text-center">
                 💡 Swipe left/right to see all columns
               </p>
             </div>
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="overflow-x-auto -mx-4 sm:-mx-6 md:mx-0">
               <div className="inline-block min-w-full align-middle">
                 <table className="min-w-full">
                   <thead className="bg-gradient-to-r from-slate-700 to-blue-700">
