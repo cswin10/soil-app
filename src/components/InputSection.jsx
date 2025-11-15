@@ -17,6 +17,7 @@ const DEFAULT_PARAMETERS = [
 function InputSection({ batches, setBatches, limits, setLimits }) {
   const [numBatches, setNumBatches] = useState(3)
   const [batchData, setBatchData] = useState({})
+  const [isExpanded, setIsExpanded] = useState(true)
 
   // Initialize batches and limits
   useEffect(() => {
@@ -115,43 +116,63 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
 
     setBatches(exampleBatches)
     setNumBatches(3)
+    setIsExpanded(true)
   }
 
   return (
     <div className="space-y-6">
       {/* Configuration Header */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-slate-200">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900">Configure Soil Batches</h2>
-            <p className="text-sm text-slate-600 mt-1">Enter lab test results for each batch</p>
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                <svg
+                  className={`w-6 h-6 transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Configure Soil Batches</h2>
+                <p className="text-sm text-slate-600 mt-1">
+                  {batches.length} batches configured • {Object.keys(limits).length} parameters
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={loadExampleData}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
+            >
+              ✨ Load Example
+            </button>
           </div>
-          <button
-            onClick={loadExampleData}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
-          >
-            ✨ Load Example
-          </button>
+
+          {/* Number of Batches Selector */}
+          {isExpanded && (
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium text-slate-700">Number of Batches:</label>
+              <select
+                value={numBatches}
+                onChange={(e) => handleBatchCountChange(e.target.value)}
+                className="bg-white border-2 border-slate-300 rounded-lg px-4 py-2 font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                  <option key={n} value={n}>{n} Batches</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
-        {/* Number of Batches Selector */}
-        <div className="flex items-center gap-4 mb-6">
-          <label className="text-sm font-medium text-slate-700">Number of Batches:</label>
-          <select
-            value={numBatches}
-            onChange={(e) => handleBatchCountChange(e.target.value)}
-            className="bg-white border-2 border-slate-300 rounded-lg px-4 py-2 font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-              <option key={n} value={n}>{n} Batches</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Parameter Input Table */}
-      {batches.length > 0 && (
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+        {/* Parameter Input Table */}
+        {isExpanded && batches.length > 0 && (
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead className="bg-gradient-to-r from-slate-700 to-blue-700">
@@ -217,16 +238,18 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
               </tbody>
             </table>
           </div>
+        )}
 
-          {/* Helper Text */}
+        {/* Helper Text */}
+        {isExpanded && (
           <div className="bg-gradient-to-r from-blue-50 to-slate-50 border-t border-slate-200 px-6 py-4">
             <p className="text-xs text-slate-600">
               <strong>Tip:</strong> Set upper limit to 9999 to ignore a parameter during optimization.
               All values are automatically saved as you type.
             </p>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

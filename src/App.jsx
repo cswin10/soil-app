@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import InputSection from './components/InputSection'
 import ResultsDisplay from './components/ResultsDisplay'
+import { optimizeMix } from './utils/optimizer'
 
 function App() {
   const [batches, setBatches] = useState([])
@@ -15,31 +16,17 @@ function App() {
     setError(null)
     setResults(null)
 
-    try {
-      const response = await fetch('/.netlify/functions/optimize', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          batches,
-          limits,
-          tolerance
-        })
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Optimization failed')
+    // Use setTimeout to allow UI to update (show loading state)
+    setTimeout(() => {
+      try {
+        const data = optimizeMix(batches, limits, tolerance)
+        setResults(data)
+      } catch (err) {
+        setError(err.message || 'Optimization failed')
+      } finally {
+        setLoading(false)
       }
-
-      setResults(data)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
+    }, 100)
   }
 
   const canOptimize = batches.length >= 2 && Object.keys(limits).length > 0
