@@ -18,6 +18,9 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
   const [numBatches, setNumBatches] = useState(3)
   const [batchData, setBatchData] = useState({})
   const [isExpanded, setIsExpanded] = useState(true)
+  const [isDragging, setIsDragging] = useState(false)
+  const [uploadError, setUploadError] = useState(null)
+  const [uploadSuccess, setUploadSuccess] = useState(null)
 
   // Initialize batches and limits
   useEffect(() => {
@@ -25,6 +28,111 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
       initializeBatches(3)
     }
   }, [])
+
+  // Parse CSV file
+  const parseCSV = (text) => {
+    const lines = text.split('\n').filter(line => line.trim())
+    if (lines.length < 2) throw new Error('File must contain header row and at least one data row')
+
+    const headers = lines[0].split(',').map(h => h.trim())
+    const batchNameIndex = headers.findIndex(h => h.toLowerCase() === 'batch' || h.toLowerCase() === 'name')
+
+    if (batchNameIndex === -1) {
+      throw new Error('CSV must contain a "Batch" or "Name" column')
+    }
+
+    const newBatches = []
+    const newLimits = {}
+    const parameterNames = headers.filter((_, idx) => idx !== batchNameIndex)
+
+    // Initialize limits for discovered parameters
+    parameterNames.forEach(paramName => {
+      const defaultParam = DEFAULT_PARAMETERS.find(p => p.name === paramName)
+      if (defaultParam) {
+        newLimits[paramName] = { lower: defaultParam.lower, upper: defaultParam.upper }
+      } else {
+        // For unknown parameters, set wide limits
+        newLimits[paramName] = { lower: 0, upper: 9999 }
+      }
+    })
+
+    // Parse data rows
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim())
+      const batchName = values[batchNameIndex]
+      const batch = { name: batchName }
+
+      headers.forEach((header, idx) => {
+        if (idx !== batchNameIndex) {
+          const value = parseFloat(values[idx])
+          batch[header] = isNaN(value) ? 0 : value
+        }
+      })
+
+      newBatches.push(batch)
+    }
+
+    return { batches: newBatches, limits: newLimits }
+  }
+
+  // Handle file upload
+  const handleFileUpload = async (file) => {
+    setUploadError(null)
+    setUploadSuccess(null)
+
+    if (!file) return
+
+    // Check file type
+    const fileType = file.name.split('.').pop().toLowerCase()
+    if (fileType !== 'csv') {
+      setUploadError('Please upload a CSV file')
+      return
+    }
+
+    try {
+      const text = await file.text()
+      const { batches: newBatches, limits: newLimits } = parseCSV(text)
+
+      setBatches(newBatches)
+      setLimits(newLimits)
+      setNumBatches(newBatches.length)
+      setUploadSuccess(`Successfully loaded ${newBatches.length} batches with ${Object.keys(newLimits).length} parameters`)
+
+      // Clear success message after 5 seconds
+      setTimeout(() => setUploadSuccess(null), 5000)
+    } catch (err) {
+      setUploadError(err.message || 'Failed to parse file')
+    }
+  }
+
+  // Drag and drop handlers
+  const handleDragEnter = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const files = e.dataTransfer.files
+    if (files.length > 0) {
+      handleFileUpload(files[0])
+    }
+  }
 
   const initializeBatches = (count) => {
     const newBatches = []
@@ -121,7 +229,120 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
 
   return (
     <div className="space-y-4 md:space-y-6 w-full max-w-full overflow-hidden">
-      {/* Configuration Header */}
+      {/* File Upload Section */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 overflow-hidden w-full max-w-full">
+        <div className="p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 mb-2">Import Batch Data</h2>
+          <p className="text-xs sm:text-sm text-slate-600 mb-4">
+            Upload a CSV file with your soil batch data (recommended)
+          </p>
+
+          {/* Drag and Drop Zone */}
+          <div
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`relative border-3 border-dashed rounded-2xl p-6 sm:p-8 transition-all duration-200 ${
+              isDragging
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50/50'
+            }`}
+          >
+            <div className="text-center">
+              <div className="mb-4">
+                <svg
+                  className="mx-auto h-12 w-12 sm:h-16 sm:w-16 text-slate-400"
+                  stroke="currentColor"
+                  fill="none"
+                  viewBox="0 0 48 48"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-sm text-slate-600">
+                <label
+                  htmlFor="file-upload"
+                  className="relative cursor-pointer bg-white rounded-lg px-4 py-2 font-semibold text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 border-2 border-blue-200 hover:border-blue-300 transition-all"
+                >
+                  <span>Choose a file</span>
+                  <input
+                    id="file-upload"
+                    name="file-upload"
+                    type="file"
+                    accept=".csv"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleFileUpload(file)
+                    }}
+                  />
+                </label>
+                <p className="text-slate-600">or drag and drop</p>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">CSV files only</p>
+            </div>
+          </div>
+
+          {/* Upload Success Message */}
+          {uploadSuccess && (
+            <div className="mt-4 bg-green-50 border-2 border-green-300 rounded-xl p-4">
+              <div className="flex items-center">
+                <svg className="h-5 w-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm font-medium text-green-800">{uploadSuccess}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Upload Error Message */}
+          {uploadError && (
+            <div className="mt-4 bg-red-50 border-2 border-red-300 rounded-xl p-4">
+              <div className="flex items-center">
+                <svg className="h-5 w-5 text-red-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <p className="text-sm font-medium text-red-800">{uploadError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* CSV Format Help */}
+          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
+              <p className="text-sm text-blue-900 font-semibold">CSV Format Example:</p>
+              <a
+                href="/sample-soil-data.csv"
+                download
+                className="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Download Sample
+              </a>
+            </div>
+            <pre className="text-xs text-blue-800 bg-white p-3 rounded border border-blue-200 overflow-x-auto">
+{`Batch,pH,Arsenic,Lead,Cadmium
+Batch 1,7.2,11,29,1.2
+Batch 2,9.0,22,77,2.8
+Batch 3,7.1,16,36,1.5`}
+            </pre>
+            <p className="text-xs text-blue-700 mt-2">
+              First column must be named "Batch" or "Name". Other columns will be matched to parameters.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Configuration Header - Manual Entry */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 overflow-hidden w-full max-w-full">
         <div className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -140,9 +361,9 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
                 </svg>
               </button>
               <div className="min-w-0 flex-1">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 truncate">Configure Soil Batches</h2>
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 truncate">Manual Entry (Optional)</h2>
                 <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                  {batches.length} batches • {Object.keys(limits).length} parameters
+                  Enter data manually or adjust uploaded values • {batches.length} batches • {Object.keys(limits).length} parameters
                 </p>
               </div>
             </div>
