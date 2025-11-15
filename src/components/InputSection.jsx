@@ -1,18 +1,109 @@
 import { useState, useEffect } from 'react'
 import ComplianceHeatmap from './ComplianceHeatmap'
+import ParameterConfigModal from './ParameterConfigModal'
 
-// Common soil contaminant parameters with typical regulatory limits
+// Common soil parameters with typical regulatory limits and metadata
 const DEFAULT_PARAMETERS = [
-  { name: 'pH', lower: 5.5, upper: 8.5, unit: '' },
-  { name: 'Arsenic', lower: 0, upper: 37, unit: 'mg/kg' },
-  { name: 'Lead', lower: 0, upper: 200, unit: 'mg/kg' },
-  { name: 'Cadmium', lower: 0, upper: 5, unit: 'mg/kg' },
-  { name: 'Chromium', lower: 0, upper: 100, unit: 'mg/kg' },
-  { name: 'Copper', lower: 0, upper: 150, unit: 'mg/kg' },
-  { name: 'Mercury', lower: 0, upper: 2, unit: 'mg/kg' },
-  { name: 'Nickel', lower: 0, upper: 50, unit: 'mg/kg' },
-  { name: 'Zinc', lower: 0, upper: 200, unit: 'mg/kg' },
-  { name: 'Selenium', lower: 0, upper: 10, unit: 'mg/kg' },
+  {
+    name: 'pH',
+    lower: 5.5,
+    upper: 8.5,
+    unit: 'pH',
+    type: 'physical',
+    blendingMethod: 'manual',
+    priority: 1,
+    description: 'Soil acidity/alkalinity (non-linear blending)'
+  },
+  {
+    name: 'Arsenic',
+    lower: 0,
+    upper: 37,
+    unit: 'mg/kg',
+    type: 'contaminant',
+    blendingMethod: 'linear',
+    priority: 1,
+    description: 'Heavy metal contaminant'
+  },
+  {
+    name: 'Lead',
+    lower: 0,
+    upper: 200,
+    unit: 'mg/kg',
+    type: 'contaminant',
+    blendingMethod: 'linear',
+    priority: 1,
+    description: 'Heavy metal contaminant'
+  },
+  {
+    name: 'Cadmium',
+    lower: 0,
+    upper: 5,
+    unit: 'mg/kg',
+    type: 'contaminant',
+    blendingMethod: 'linear',
+    priority: 1,
+    description: 'Heavy metal contaminant'
+  },
+  {
+    name: 'Chromium',
+    lower: 0,
+    upper: 100,
+    unit: 'mg/kg',
+    type: 'contaminant',
+    blendingMethod: 'linear',
+    priority: 1,
+    description: 'Heavy metal contaminant'
+  },
+  {
+    name: 'Copper',
+    lower: 0,
+    upper: 150,
+    unit: 'mg/kg',
+    type: 'contaminant',
+    blendingMethod: 'linear',
+    priority: 1,
+    description: 'Heavy metal contaminant'
+  },
+  {
+    name: 'Mercury',
+    lower: 0,
+    upper: 2,
+    unit: 'mg/kg',
+    type: 'contaminant',
+    blendingMethod: 'linear',
+    priority: 1,
+    description: 'Heavy metal contaminant'
+  },
+  {
+    name: 'Nickel',
+    lower: 0,
+    upper: 50,
+    unit: 'mg/kg',
+    type: 'contaminant',
+    blendingMethod: 'linear',
+    priority: 1,
+    description: 'Heavy metal contaminant'
+  },
+  {
+    name: 'Zinc',
+    lower: 0,
+    upper: 200,
+    unit: 'mg/kg',
+    type: 'contaminant',
+    blendingMethod: 'linear',
+    priority: 1,
+    description: 'Heavy metal contaminant'
+  },
+  {
+    name: 'Selenium',
+    lower: 0,
+    upper: 10,
+    unit: 'mg/kg',
+    type: 'contaminant',
+    blendingMethod: 'linear',
+    priority: 1,
+    description: 'Heavy metal contaminant'
+  },
 ]
 
 function InputSection({ batches, setBatches, limits, setLimits }) {
@@ -24,6 +115,7 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
   const [uploadSuccess, setUploadSuccess] = useState(null)
   const [limitsProfiles, setLimitsProfiles] = useState([])
   const [showProfileManager, setShowProfileManager] = useState(false)
+  const [showParamConfig, setShowParamConfig] = useState(false)
   const [newProfileName, setNewProfileName] = useState('')
 
   // Initialize batches and limits
@@ -120,14 +212,30 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
     const newLimits = {}
     const parameterNames = headers.filter((_, idx) => idx !== batchNameIndex)
 
-    // Initialize limits with defaults
+    // Initialize limits with defaults (including metadata)
     parameterNames.forEach(paramName => {
       const defaultParam = DEFAULT_PARAMETERS.find(p => p.name === paramName)
       if (defaultParam) {
-        newLimits[paramName] = { lower: defaultParam.lower, upper: defaultParam.upper }
+        newLimits[paramName] = {
+          lower: defaultParam.lower,
+          upper: defaultParam.upper,
+          unit: defaultParam.unit || '',
+          type: defaultParam.type || 'other',
+          blendingMethod: defaultParam.blendingMethod || 'linear',
+          priority: defaultParam.priority || 1,
+          description: defaultParam.description || ''
+        }
       } else {
-        // For unknown parameters, set wide limits
-        newLimits[paramName] = { lower: 0, upper: 9999 }
+        // For unknown parameters, set wide limits with default metadata
+        newLimits[paramName] = {
+          lower: 0,
+          upper: 9999,
+          unit: '',
+          type: 'other',
+          blendingMethod: 'linear',
+          priority: 1,
+          description: 'Custom parameter'
+        }
       }
     })
 
@@ -272,9 +380,17 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
     const newBatchData = {}
     const newLimits = {}
 
-    // Initialize limits from default parameters
+    // Initialize limits from default parameters with full metadata
     DEFAULT_PARAMETERS.forEach(param => {
-      newLimits[param.name] = { lower: param.lower, upper: param.upper }
+      newLimits[param.name] = {
+        lower: param.lower,
+        upper: param.upper,
+        unit: param.unit || '',
+        type: param.type || 'other',
+        blendingMethod: param.blendingMethod || 'linear',
+        priority: param.priority || 1,
+        description: param.description || ''
+      }
     })
 
     // Create batches with zero values
@@ -482,17 +598,25 @@ Batch 3,7.1,16,36,1.5`}
         <div className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
             <div>
-              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">Screening Limits Profiles</h2>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">Screening Limits & Parameters</h2>
               <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                Save and load different screening limit sets (e.g., S4UL, C4UL, BS3882)
+                Save/load different limit sets (e.g., S4UL, C4UL, BS3882) and configure parameter types
               </p>
             </div>
-            <button
-              onClick={() => setShowProfileManager(!showProfileManager)}
-              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 text-sm whitespace-nowrap"
-            >
-              {showProfileManager ? 'Hide' : 'Manage Profiles'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowParamConfig(true)}
+                className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 text-sm whitespace-nowrap"
+              >
+                ⚙️ Configure Parameters
+              </button>
+              <button
+                onClick={() => setShowProfileManager(!showProfileManager)}
+                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 text-sm whitespace-nowrap"
+              >
+                {showProfileManager ? 'Hide' : 'Manage Profiles'}
+              </button>
+            </div>
           </div>
 
           {showProfileManager && (
@@ -764,6 +888,15 @@ Batch 3,7.1,16,36,1.5`}
           </div>
         )}
       </div>
+
+      {/* Parameter Configuration Modal */}
+      {showParamConfig && (
+        <ParameterConfigModal
+          limits={limits}
+          setLimits={setLimits}
+          onClose={() => setShowParamConfig(false)}
+        />
+      )}
     </div>
   )
 }
