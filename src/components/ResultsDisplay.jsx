@@ -110,7 +110,7 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 w-full max-w-full overflow-hidden">
       {/* Status Banner */}
       <div className={`rounded-lg p-6 ${
         results.success && results.within_tolerance
@@ -150,7 +150,7 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
       </div>
 
       {/* Mixing Ratios */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6 w-full max-w-full overflow-hidden">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold text-gray-900">
             Optimal Mixing Ratios
@@ -182,21 +182,21 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
       </div>
 
       {/* Parameter Results Table */}
-      <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6 w-full max-w-full overflow-hidden">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-          <h3 className="text-xl font-semibold text-gray-900">
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
             Parameter Analysis
           </h3>
           <button
             onClick={exportToCSV}
-            className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-4 rounded-md w-full sm:w-auto"
+            className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-4 rounded-md w-full sm:w-auto flex-shrink-0"
           >
             Export to CSV
           </button>
         </div>
 
         {/* Mobile Card View */}
-        <div className="block md:hidden space-y-4">
+        <div className="block xl:hidden space-y-3">
           {Object.keys(limits).map(param => {
             if (limits[param].upper === 9999) return null
 
@@ -247,7 +247,7 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
         </div>
 
         {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden xl:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -326,7 +326,7 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
       </div>
 
       {/* Legend */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6 w-full max-w-full overflow-hidden">
         <h3 className="text-lg font-semibold text-gray-900 mb-3">Legend</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex items-center">
@@ -357,7 +357,7 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
       </div>
 
       {/* How It Works */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 md:p-6 w-full max-w-full overflow-hidden">
         <h3 className="text-lg font-semibold text-blue-900 mb-3">How the Optimization Works</h3>
         <div className="text-sm text-blue-800 space-y-2">
           <p>
