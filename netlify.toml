@@ -1,7 +1,6 @@
 [build]
   command = "npm run build"
   publish = "dist"
-  functions = "netlify/functions"
 
 [[redirects]]
   from = "/*"
@@ -9,4 +8,8 @@
   status = 200
 
 [functions]
-  python_version = "3.11"
+  directory = "netlify/functions"
+
+[[functions]]
+  name = "optimize"
+  runtime = "python3.11"
