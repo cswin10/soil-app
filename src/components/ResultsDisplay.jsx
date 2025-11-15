@@ -237,6 +237,136 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
         </p>
       </div>
 
+      {/* Optimization Transparency & Quality Metrics */}
+      <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl shadow-xl p-4 md:p-6 border-2 border-slate-300">
+        <h3 className="text-xl font-bold text-slate-900 mb-4">Optimization Details</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          {/* Solution Quality */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border-2 border-slate-200">
+            <div className="text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Solution Quality</div>
+            <div className={`text-2xl font-bold ${
+              results.success && results.within_tolerance ? 'text-green-600' :
+              results.success ? 'text-yellow-600' : 'text-red-600'
+            }`}>
+              {results.success && results.within_tolerance ? 'Optimal' :
+               results.success ? 'Feasible' : 'Infeasible'}
+            </div>
+          </div>
+
+          {/* Total Residual */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border-2 border-slate-200">
+            <div className="text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Total Residual</div>
+            <div className="text-2xl font-bold text-blue-900">
+              {results.total_residual?.toFixed(4) || 'N/A'}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">Lower is better</div>
+          </div>
+
+          {/* Parameters Analyzed */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border-2 border-slate-200">
+            <div className="text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Parameters</div>
+            <div className="text-2xl font-bold text-slate-900">
+              {Object.keys(limits).filter(p => limits[p].upper !== 9999).length}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">Analyzed</div>
+          </div>
+
+          {/* Compliance Rate */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border-2 border-slate-200">
+            <div className="text-xs font-medium text-slate-600 uppercase tracking-wider mb-1">Compliance</div>
+            <div className="text-2xl font-bold text-slate-900">
+              {(() => {
+                const totalParams = Object.keys(limits).filter(p => limits[p].upper !== 9999).length
+                const passingParams = totalParams - failingParams.length
+                return `${passingParams}/${totalParams}`
+              })()}
+            </div>
+            <div className="text-xs text-slate-500 mt-1">Within limits</div>
+          </div>
+        </div>
+
+        {/* Live Feedback Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Parameters Within Tolerance */}
+          <div className="bg-green-50 border-2 border-green-200 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <h4 className="font-semibold text-green-900 text-sm">Within Tolerance</h4>
+            </div>
+            <div className="text-2xl font-bold text-green-900">
+              {Object.keys(limits).filter(param => {
+                if (limits[param].upper === 9999) return false
+                const status = getParamStatus(param, results.blended_values[param], results.residuals[param])
+                return status === 'within-tolerance'
+              }).length}
+            </div>
+            <div className="text-xs text-green-700 mt-1">Parameters centered</div>
+          </div>
+
+          {/* Parameters Within Limits (Marginal) */}
+          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <h4 className="font-semibold text-yellow-900 text-sm">Marginal</h4>
+            </div>
+            <div className="text-2xl font-bold text-yellow-900">{marginalParams.length}</div>
+            <div className="text-xs text-yellow-700 mt-1">Outside tolerance</div>
+          </div>
+
+          {/* Failing Parameters */}
+          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <h4 className="font-semibold text-red-900 text-sm">Failing</h4>
+            </div>
+            <div className="text-2xl font-bold text-red-900">{failingParams.length}</div>
+            <div className="text-xs text-red-700 mt-1">Exceed limits</div>
+          </div>
+        </div>
+
+        {/* Worst Offending Parameter */}
+        {results.success && (() => {
+          const params = Object.keys(limits).filter(p => limits[p].upper !== 9999)
+          let worstParam = null
+          let worstResidual = 0
+
+          params.forEach(param => {
+            const residual = Math.abs(results.residuals[param])
+            if (residual > worstResidual) {
+              worstResidual = residual
+              worstParam = param
+            }
+          })
+
+          if (worstParam) {
+            return (
+              <div className="mt-4 bg-white border-2 border-orange-300 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <svg className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-orange-900 text-sm">Worst Offending Parameter</h4>
+                    <p className="text-sm text-orange-800 mt-1">
+                      <strong>{worstParam}</strong> has the highest residual ({worstResidual.toFixed(4)}),
+                      making it the most difficult parameter to optimize in this blend.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          }
+          return null
+        })()}
+      </div>
+
       {/* Mixing Ratios */}
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6 w-full max-w-full overflow-hidden">
         <div className="flex justify-between items-center mb-4">

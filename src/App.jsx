@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import InputSection from './components/InputSection'
 import ResultsDisplay from './components/ResultsDisplay'
+import ExportManager from './components/ExportManager'
 import { optimizeMix } from './utils/optimizer'
 
 function App() {
@@ -64,6 +65,16 @@ function App() {
           setLimits={setLimits}
         />
 
+        {/* Export Manager */}
+        {batches.length > 0 && Object.keys(limits).length > 0 && (
+          <ExportManager
+            batches={batches}
+            limits={limits}
+            tolerance={tolerance}
+            results={results}
+          />
+        )}
+
         {/* Tolerance Slider */}
         {batches.length >= 2 && (
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 mb-8 border border-slate-200">
@@ -81,18 +92,37 @@ function App() {
               </div>
             </div>
             <div className="space-y-4">
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={tolerance}
-                onChange={(e) => setTolerance(parseFloat(e.target.value))}
-                className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
-                style={{
-                  background: `linear-gradient(to right, rgb(59 130 246) 0%, rgb(59 130 246) ${tolerance * 100}%, rgb(226 232 240) ${tolerance * 100}%, rgb(226 232 240) 100%)`
-                }}
-              />
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={tolerance}
+                  onChange={(e) => setTolerance(parseFloat(e.target.value))}
+                  className="flex-1 h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer slider"
+                  style={{
+                    background: `linear-gradient(to right, rgb(59 130 246) 0%, rgb(59 130 246) ${tolerance * 100}%, rgb(226 232 240) ${tolerance * 100}%, rgb(226 232 240) 100%)`
+                  }}
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={(tolerance * 100).toFixed(1)}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value)
+                      if (!isNaN(val) && val >= 0 && val <= 100) {
+                        setTolerance(val / 100)
+                      }
+                    }}
+                    className="w-20 px-3 py-2 border-2 border-blue-300 rounded-lg text-center font-bold text-blue-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <span className="text-blue-900 font-semibold">%</span>
+                </div>
+              </div>
               <div className="flex justify-between text-sm text-slate-600">
                 <span className="font-medium">🎯 Tight Control</span>
                 <span className="font-medium">🌊 Relaxed</span>
