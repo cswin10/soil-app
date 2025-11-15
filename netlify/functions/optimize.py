@@ -1,38 +1,22 @@
 import json
-import numpy as np
-from scipy.optimize import minimize
+
+# Try to import dependencies with error handling
+try:
+    import numpy as np
+    from scipy.optimize import minimize
+    DEPS_LOADED = True
+    DEPS_ERROR = None
+except Exception as e:
+    DEPS_LOADED = False
+    DEPS_ERROR = str(e)
+    np = None
+    minimize = None
 
 def handler(event, context):
     """
     Netlify Function to optimize soil mixing ratios.
-
-    Expected input (JSON):
-    {
-        "batches": [
-            {"name": "Batch 1", "pH": 7.2, "Arsenic": 11, ...},
-            {"name": "Batch 2", "pH": 9, "Arsenic": 22, ...},
-            ...
-        ],
-        "limits": {
-            "pH": {"lower": 5.5, "upper": 8.5},
-            "Arsenic": {"lower": 0, "upper": 37},
-            ...
-        },
-        "tolerance": 0.75  # optional, default 0.75
-    }
-
-    Returns:
-    {
-        "success": true/false,
-        "ratios": [0.35, 0.45, 0.20],
-        "blended_values": {"pH": 7.5, "Arsenic": 15, ...},
-        "residuals": {"pH": 0.12, "Arsenic": 0.23, ...},
-        "total_residual": 0.45,
-        "within_tolerance": true/false,
-        "suggested_tolerance": 0.85  # if no solution found
-    }
     """
-
+    
     # Handle CORS preflight
     headers = {
         'Access-Control-Allow-Origin': '*',
@@ -46,6 +30,16 @@ def handler(event, context):
             'statusCode': 200,
             'headers': headers,
             'body': ''
+        }
+
+    # Check if dependencies loaded
+    if not DEPS_LOADED:
+        return {
+            'statusCode': 500,
+            'headers': headers,
+            'body': json.dumps({
+                'error': f'Failed to load Python dependencies: {DEPS_ERROR}'
+            })
         }
 
     try:
@@ -72,24 +66,20 @@ def handler(event, context):
         }
 
     except Exception as e:
+        import traceback
         return {
             'statusCode': 500,
             'headers': headers,
-            'body': json.dumps({'error': str(e)})
+            'body': json.dumps({
+                'error': str(e),
+                'traceback': traceback.format_exc()
+            })
         }
 
 
 def optimize_mix(batches, limits, tolerance=0.75):
     """
     Optimize soil mixing ratios using scipy.optimize.
-
-    Args:
-        batches: List of dicts with parameter values
-        limits: Dict with upper/lower for each parameter
-        tolerance: Target tolerance (0.0-1.0) from midpoint
-
-    Returns:
-        Dict with optimization results
     """
     n_batches = len(batches)
 
@@ -195,12 +185,7 @@ def optimize_mix(batches, limits, tolerance=0.75):
     # If no solution within tolerance, suggest relaxed tolerance
     suggested_tolerance = None
     if not within_tolerance and opt_result.success:
-        # Calculate what tolerance would be needed
         max_residual = max(residuals.values()) if residuals else 0
-        # tolerance_range / param_range = (1 - tolerance) / 2
-        # max_residual = tolerance_range / param_range
-        # max_residual = (1 - tolerance) / 2
-        # tolerance = 1 - 2 * max_residual
         suggested_tolerance = max(0.0, min(1.0, 1 - 2 * max_residual))
         suggested_tolerance = round(suggested_tolerance, 2)
 
