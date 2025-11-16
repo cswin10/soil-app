@@ -3,7 +3,7 @@ import MaterialsStep from './components/MaterialsStep'
 import OptimizeStep from './components/OptimizeStep'
 import ResultsStep from './components/ResultsStep'
 import { optimizeMix } from './utils/optimizer'
-import { getDefaultParameters } from './utils/parameters'
+import { ALL_PARAMETERS } from './utils/parameters'
 
 function App() {
   const [currentStep, setCurrentStep] = useState(1) // 1=Materials, 2=Optimize, 3=Results
@@ -14,17 +14,24 @@ function App() {
   const [results, setResults] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  // Initialize default limits when batches change
+  // Initialize limits when batches change
   useEffect(() => {
-    if (batches.length > 0 && Object.keys(limits).length === 0) {
-      const defaultParams = getDefaultParameters()
-      const initialLimits = {}
-      defaultParams.forEach(param => {
-        initialLimits[param.name] = { lower: param.lower, upper: param.upper }
+    if (batches.length > 0) {
+      // Get all parameter names from batches
+      const paramNames = Object.keys(batches[0] || {}).filter(key => key !== 'name')
+
+      // Create limits for all parameters
+      const newLimits = {}
+      paramNames.forEach(paramName => {
+        const param = ALL_PARAMETERS.find(p => p.name === paramName)
+        if (param) {
+          newLimits[paramName] = { lower: param.lower, upper: param.upper }
+        }
       })
-      setLimits(initialLimits)
+
+      setLimits(newLimits)
     }
-  }, [batches, limits])
+  }, [batches])
 
   // Navigation functions
   const goToOptimize = () => {
