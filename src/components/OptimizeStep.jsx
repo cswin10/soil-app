@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ALL_PARAMETERS, PARAMETER_CATEGORIES } from '../utils/parameters'
 
 /**
- * PAGE 2: Optimize
+ * PAGE 2: Optimise
  * Tolerance slider and calculate button with advanced options hidden
  */
 function OptimizeStep({ batches, tolerance, setTolerance, onOptimize, onBack, limits, setLimits }) {
@@ -43,7 +43,7 @@ function OptimizeStep({ batches, tolerance, setTolerance, onOptimize, onBack, li
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-slate-900 mb-2">Optimize Blend</h2>
+        <h2 className="text-3xl font-bold text-slate-900 mb-2">Optimise Blend</h2>
         <p className="text-slate-600">Set your tolerance and calculate the optimal mixing ratios</p>
       </div>
 
@@ -66,7 +66,7 @@ function OptimizeStep({ batches, tolerance, setTolerance, onOptimize, onBack, li
       <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-200">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-xl font-bold text-slate-900">Optimization Tolerance</h3>
+            <h3 className="text-xl font-bold text-slate-900">Optimisation Tolerance</h3>
             <p className="text-sm text-slate-600 mt-1">How close to ideal should values be?</p>
           </div>
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl shadow-lg">
@@ -75,29 +75,39 @@ function OptimizeStep({ batches, tolerance, setTolerance, onOptimize, onBack, li
         </div>
 
         <div className="space-y-4">
+          {/* Ed's Recommendation */}
+          <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4">
+            <p className="text-sm text-blue-900">
+              <strong>Note:</strong> As laboratory reports are only an indicator of material geochemical properties,
+              we recommend a minimum tolerance of <strong>15%</strong>.
+            </p>
+          </div>
+
           <div className="flex items-center gap-4">
+            <div className="text-sm text-slate-600 font-medium min-w-[3rem]">15%</div>
             <input
               type="range"
-              min="0"
+              min="0.15"
               max="1"
               step="0.01"
               value={tolerance}
               onChange={(e) => setTolerance(parseFloat(e.target.value))}
               className="flex-1 h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer"
               style={{
-                background: `linear-gradient(to right, rgb(59 130 246) 0%, rgb(59 130 246) ${tolerance * 100}%, rgb(226 232 240) ${tolerance * 100}%, rgb(226 232 240) 100%)`
+                background: `linear-gradient(to right, rgb(59 130 246) 0%, rgb(59 130 246) ${((tolerance - 0.15) / 0.85) * 100}%, rgb(226 232 240) ${((tolerance - 0.15) / 0.85) * 100}%, rgb(226 232 240) 100%)`
               }}
             />
+            <div className="text-sm text-slate-600 font-medium min-w-[3rem] text-right">100%</div>
             <div className="flex items-center gap-2">
               <input
                 type="number"
-                min="0"
+                min="15"
                 max="100"
                 step="1"
                 value={(tolerance * 100).toFixed(0)}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value)
-                  if (!isNaN(val) && val >= 0 && val <= 100) {
+                  if (!isNaN(val) && val >= 15 && val <= 100) {
                     setTolerance(val / 100)
                   }
                 }}
@@ -107,15 +117,10 @@ function OptimizeStep({ batches, tolerance, setTolerance, onOptimize, onBack, li
             </div>
           </div>
 
-          <div className="flex justify-between text-sm text-slate-600">
-            <span className="font-medium">🎯 Tight Control</span>
-            <span className="font-medium">🌊 Relaxed</span>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-sm text-blue-900">
-              At {(tolerance * 100).toFixed(0)}% tolerance, blended values can be up to{' '}
-              <strong>{((1 - tolerance) * 50).toFixed(0)}%</strong> away from the ideal center.
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+            <p className="text-sm text-slate-700">
+              At {(tolerance * 100).toFixed(0)}% tolerance, blended values can be within{' '}
+              <strong>{((1 - tolerance) * 50).toFixed(0)}%</strong> of the ideal target.
             </p>
           </div>
         </div>

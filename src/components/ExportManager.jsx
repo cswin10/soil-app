@@ -32,7 +32,7 @@ function ExportManager({ batches, limits, tolerance, results, materialConstraint
     const rows = []
 
     // Header
-    rows.push(['Soil Mixing Optimizer - Complete Report'])
+    rows.push(['Soil Mixing Optimiser - Complete Report'])
     rows.push(['Export Date', new Date().toLocaleString()])
     rows.push([])
 
@@ -84,7 +84,7 @@ function ExportManager({ batches, limits, tolerance, results, materialConstraint
 
     // Results (if available)
     if (results) {
-      rows.push(['OPTIMIZATION RESULTS'])
+      rows.push(['OPTIMISATION RESULTS'])
       rows.push(['Success', results.success ? 'Yes' : 'No'])
       rows.push(['Within Tolerance', results.within_tolerance ? 'Yes' : 'No'])
       rows.push(['Total Residual', results.total_residual?.toFixed(6) || 'N/A'])

@@ -502,7 +502,7 @@ function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {
                 return status === 'within-tolerance'
               }).length}
             </div>
-            <div className="text-xs text-green-700 mt-1">Parameters centered</div>
+            <div className="text-xs text-green-700 mt-1">Parameters centred</div>
           </div>
 
           {/* Parameters Within Limits (Marginal) */}
@@ -555,7 +555,7 @@ function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {
                     <h4 className="font-semibold text-orange-900 text-sm">Worst Offending Parameter</h4>
                     <p className="text-sm text-orange-800 mt-1">
                       <strong>{worstParam}</strong> has the highest residual ({worstResidual.toFixed(4)}),
-                      making it the most difficult parameter to optimize in this blend.
+                      making it the most difficult parameter to optimise in this blend.
                     </p>
                   </div>
                 </div>
@@ -599,7 +599,7 @@ function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {
                 textColor = 'text-yellow-900'
               }
 
-              // Calculate percentage for visual representation (normalize to 0-100%)
+              // Calculate percentage for visual representation (normalise to 0-100%)
               const maxResidual = Math.max(...Object.values(results.residuals).map(r => Math.abs(r)))
               const barWidth = maxResidual > 0 ? (Math.abs(residual) / maxResidual) * 100 : 0
 
@@ -968,7 +968,7 @@ function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {
 
       {/* How It Works */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 md:p-6 w-full max-w-full overflow-hidden">
-        <h3 className="text-lg font-semibold text-blue-900 mb-3">How the Optimization Works</h3>
+        <h3 className="text-lg font-semibold text-blue-900 mb-3">How the Optimisation Works</h3>
         <div className="text-sm text-blue-800 space-y-2">
           <p>
             <strong>Blended Value Calculation:</strong> For each parameter, the blended value is calculated as:
@@ -980,7 +980,7 @@ function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {
             <strong>Constraints:</strong> All mixing ratios must sum to 100%, and all blended values must stay within their legal limits.
           </p>
           <p>
-            <strong>Optimization Goal:</strong> Minimize the total normalized residual (sum of distances from midpoint, normalized by range) while keeping all parameters within tolerance.
+            <strong>Optimisation Goal:</strong> Minimise the total normalised residual (sum of distances from midpoint, normalised by range) while keeping all parameters within tolerance.
           </p>
           <p>
             <strong>Algorithm:</strong> Uses scipy.optimize with SLSQP (Sequential Least Squares Programming) method.

@@ -18,13 +18,13 @@ function ComplianceHeatmap({ batches, limits }) {
     const range = upper - lower
     const position = (value - lower) / range
 
-    // Calculate distance from midpoint (0 = at edge, 0.5 = at center)
+    // Calculate distance from midpoint (0 = at edge, 0.5 = at centre)
     const distanceFromMid = Math.abs(position - 0.5)
 
     if (distanceFromMid < 0.1) {
-      return 'bg-green-500' // Excellent - near center
+      return 'bg-green-500' // Excellent - near centre
     } else if (distanceFromMid < 0.25) {
-      return 'bg-lime-400' // Good - reasonably centered
+      return 'bg-lime-400' // Good - reasonably centred
     } else if (distanceFromMid < 0.4) {
       return 'bg-yellow-400' // Fair - getting close to edges
     } else {
@@ -61,11 +61,11 @@ function ComplianceHeatmap({ batches, limits }) {
 
         {/* Legend */}
         <div className="mb-6 bg-slate-50 rounded-xl p-4 border-2 border-slate-200">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">Color Legend</h3>
+          <h3 className="text-sm font-semibold text-slate-900 mb-3">Colour Legend</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-green-500 rounded border-2 border-slate-300"></div>
-              <span>Excellent (centered)</span>
+              <span>Excellent (centred)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-lime-400 rounded border-2 border-slate-300"></div>
