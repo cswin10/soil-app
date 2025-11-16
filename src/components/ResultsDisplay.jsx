@@ -1,13 +1,65 @@
+import { useState } from 'react'
 import SoilTextureTriangle from './SoilTextureTriangle'
 import { generateCompliancePDF } from '../utils/pdfExport'
 
 function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {} }) {
+  const [hoveredParam, setHoveredParam] = useState(null)
+  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 })
   // Helper function: Calculate target value for a parameter
   // Zero-seeking: contaminants (lower=0) target 0, others target midpoint
   const getTargetValue = (param) => {
     const lower = limits[param].lower
     const upper = limits[param].upper
     return lower === 0 ? 0 : (upper + lower) / 2
+  }
+
+  // Handle mouse enter on parameter row for inspect mode
+  const handleParamMouseEnter = (param, event) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    setHoverPosition({ x: rect.left, y: rect.top })
+    setHoveredParam(param)
+  }
+
+  const handleParamMouseLeave = () => {
+    setHoveredParam(null)
+  }
+
+  // Get inspection data for a parameter
+  const getInspectionData = (param) => {
+    if (!hoveredParam || hoveredParam !== param) return null
+
+    const blended = results.blended_values[param]
+    const lower = limits[param].lower
+    const upper = limits[param].upper
+    const target = getTargetValue(param)
+    const residual = results.residuals[param]
+    const status = getParamStatus(param, blended, residual)
+
+    // Calculate batch contributions
+    const contributions = batches.map((batch, index) => ({
+      name: batch.name,
+      value: batch[param] ?? 0,
+      ratio: results.ratios[index],
+      contribution: (results.ratios[index] * (batch[param] ?? 0))
+    }))
+
+    // Calculate compliance margins
+    const marginFromLower = blended - lower
+    const marginFromUpper = upper - blended
+    const distanceFromTarget = blended - target
+
+    return {
+      blended,
+      lower,
+      upper,
+      target,
+      residual,
+      status,
+      contributions,
+      marginFromLower,
+      marginFromUpper,
+      distanceFromTarget
+    }
   }
 
   const exportToCSV = () => {
@@ -138,8 +190,107 @@ function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {
     return status === 'within-limits'
   })
 
+  // Render inspection tooltip
+  const InspectionTooltip = ({ param }) => {
+    const data = getInspectionData(param)
+    if (!data) return null
+
+    return (
+      <div className="fixed z-50 pointer-events-none" style={{ left: hoverPosition.x + 20, top: hoverPosition.y - 100 }}>
+        <div className="bg-slate-900 text-white rounded-xl shadow-2xl p-4 w-80 border-2 border-blue-400 pointer-events-auto">
+          {/* Header */}
+          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-700">
+            <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h4 className="font-bold text-lg">{param} - Detailed Inspection</h4>
+          </div>
+
+          {/* Blended Value & Target */}
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="bg-blue-900/50 rounded-lg p-2">
+              <div className="text-xs text-blue-300">Blended Value</div>
+              <div className="text-xl font-bold">{data.blended.toFixed(3)}</div>
+            </div>
+            <div className="bg-purple-900/50 rounded-lg p-2">
+              <div className="text-xs text-purple-300">Target</div>
+              <div className="text-xl font-bold">{data.target.toFixed(3)}</div>
+            </div>
+          </div>
+
+          {/* Compliance Margins */}
+          <div className="mb-3 bg-slate-800 rounded-lg p-2">
+            <div className="text-xs text-slate-400 mb-1">Compliance Margins</div>
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-300">From Lower ({data.lower}):</span>
+                <span className={`font-bold ${data.marginFromLower >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {data.marginFromLower >= 0 ? '+' : ''}{data.marginFromLower.toFixed(3)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-300">From Upper ({data.upper}):</span>
+                <span className={`font-bold ${data.marginFromUpper >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {data.marginFromUpper >= 0 ? '+' : ''}{data.marginFromUpper.toFixed(3)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-300">From Target:</span>
+                <span className={`font-bold ${Math.abs(data.distanceFromTarget) < 0.1 ? 'text-green-400' : 'text-yellow-400'}`}>
+                  {data.distanceFromTarget >= 0 ? '+' : ''}{data.distanceFromTarget.toFixed(3)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Batch Contributions */}
+          <div className="mb-2">
+            <div className="text-xs text-slate-400 mb-2 font-semibold">Batch Contributions (Calculation)</div>
+            <div className="space-y-1.5">
+              {data.contributions.map((contrib, idx) => (
+                <div key={idx} className="bg-slate-800 rounded p-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-blue-300">{contrib.name}</span>
+                    <span className={`px-2 py-0.5 rounded ${getStatusColor(data.status)}`}>
+                      {(contrib.ratio * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1 font-mono">
+                    {contrib.value.toFixed(2)} × {contrib.ratio.toFixed(4)} = {contrib.contribution.toFixed(3)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Sum Verification */}
+          <div className="bg-green-900/30 rounded-lg p-2 border border-green-700/50">
+            <div className="text-xs text-green-300 font-mono">
+              Σ Contributions = {data.contributions.reduce((sum, c) => sum + c.contribution, 0).toFixed(3)}
+            </div>
+            <div className="text-xs text-green-400 mt-1">
+              ✓ Blended = {data.blended.toFixed(3)}
+            </div>
+          </div>
+
+          {/* Status Badge */}
+          <div className="mt-3 pt-2 border-t border-slate-700">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-400">Status:</span>
+              <span className={`px-3 py-1 text-xs font-bold rounded-full ${getStatusColor(data.status)}`}>
+                {getStatusText(data.status)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4 md:space-y-6 w-full max-w-full overflow-hidden">
+      {/* Inspection Tooltip Overlay */}
+      {hoveredParam && <InspectionTooltip param={hoveredParam} />}
       {/* Missing Data Warning */}
       {results.missing_data_params && results.missing_data_params.length > 0 && (
         <div className="bg-orange-50 border-4 border-orange-500 rounded-2xl p-6 shadow-2xl">
@@ -608,6 +759,19 @@ function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {
 
       {/* Parameter Results Table */}
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6 w-full max-w-full overflow-hidden">
+        {/* Inspect Mode Info Banner */}
+        <div className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-3">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <span className="text-sm font-semibold text-blue-900">Inspect Mode Active: </span>
+              <span className="text-sm text-blue-800">Hover over any parameter row to see detailed calculation breakdown, batch contributions, and compliance margins.</span>
+            </div>
+          </div>
+        </div>
+
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
           <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
             Parameter Analysis
@@ -643,7 +807,12 @@ function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {
             const status = getParamStatus(param, blended, residual)
 
             return (
-              <div key={param} className="border border-gray-200 rounded-lg p-4 space-y-3">
+              <div
+                key={param}
+                className="border border-gray-200 rounded-lg p-4 space-y-3 hover:border-blue-400 hover:shadow-lg transition-all cursor-help"
+                onMouseEnter={(e) => handleParamMouseEnter(param, e)}
+                onMouseLeave={handleParamMouseLeave}
+              >
                 <div className="flex justify-between items-start">
                   <h4 className="text-lg font-semibold text-gray-900">{param}</h4>
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(status)}`}>
@@ -720,7 +889,12 @@ function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {
                 const status = getParamStatus(param, blended, residual)
 
                 return (
-                  <tr key={param}>
+                  <tr
+                    key={param}
+                    className="hover:bg-blue-50 transition-colors cursor-help"
+                    onMouseEnter={(e) => handleParamMouseEnter(param, e)}
+                    onMouseLeave={handleParamMouseLeave}
+                  >
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">
                       {param}
                     </td>
