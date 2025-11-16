@@ -57,22 +57,72 @@ function App() {
     setResults(null)
   }
 
-  // Optimisation handler
-  const handleOptimize = () => {
+  // Optimisation handler - calls Python backend API
+  const handleOptimize = async () => {
     setLoading(true)
 
-    setTimeout(() => {
-      try {
-        const data = optimizeMix(batches, limits, tolerance, {})
-        setResults(data)
-        setLoading(false)
-        goToResults()
-      } catch (err) {
-        console.error('Optimisation failed:', err)
-        setLoading(false)
-        alert('Optimisation failed: ' + (err.message || 'Unknown error'))
+    try {
+      console.log('🚀 Calling Python optimization API...')
+      console.log('Batches:', batches)
+      console.log('Limits:', limits)
+      console.log('Tolerance:', tolerance)
+
+      // Call Netlify function for Python scipy optimization
+      const response = await fetch('/.netlify/functions/optimize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          batches: batches,
+          limits: limits,
+          tolerance: tolerance
+        })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`API returned ${response.status}: ${errorText}`)
       }
-    }, 100)
+
+      const data = await response.json()
+
+      // Check for error in response
+      if (data.error) {
+        throw new Error(data.error + (data.traceback ? '\n' + data.traceback : ''))
+      }
+
+      console.log('✅ Optimization result from Python API:', data)
+      console.log('Ratios:', data.ratios)
+      console.log('Blended values:', data.blended_values)
+
+      setResults(data)
+      setLoading(false)
+      goToResults()
+    } catch (err) {
+      console.error('❌ Python API failed:', err)
+      setLoading(false)
+
+      // Show detailed error and ask about fallback
+      const useFallback = confirm(
+        'Python optimization API failed:\n' + err.message +
+        '\n\nWould you like to use the client-side JavaScript optimizer instead?\n' +
+        '(Note: JS optimizer is less accurate than Python/scipy)'
+      )
+
+      if (useFallback) {
+        // Fallback to client-side optimizer if API fails
+        try {
+          console.log('⚠️ Using fallback JS optimizer...')
+          const data = optimizeMix(batches, limits, tolerance, {})
+          setResults(data)
+          goToResults()
+        } catch (fallbackErr) {
+          console.error('Fallback also failed:', fallbackErr)
+          alert('Both API and fallback optimization failed:\n' + fallbackErr.message)
+        }
+      }
+    }
   }
 
   return (
