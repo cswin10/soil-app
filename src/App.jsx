@@ -57,71 +57,72 @@ function App() {
     setResults(null)
   }
 
-  // Optimisation handler - calls Python backend API
+  // Optimisation handler - uses Python API on Netlify, JS optimizer locally
   const handleOptimize = async () => {
     setLoading(true)
 
-    try {
-      console.log('🚀 Calling Python optimization API...')
-      console.log('Batches:', batches)
-      console.log('Limits:', limits)
-      console.log('Tolerance:', tolerance)
+    // Check if we're in production (Netlify) or local dev
+    const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1')
 
-      // Call Netlify function for Python scipy optimization
-      const response = await fetch('/.netlify/functions/optimize', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          batches: batches,
-          limits: limits,
-          tolerance: tolerance
+    // Try Python API first (only in production or if user has netlify dev running)
+    if (isProduction || window.location.hostname.includes('netlify')) {
+      try {
+        console.log('🚀 Calling Python scipy optimization API...')
+        console.log('Batches:', batches)
+        console.log('Limits:', limits)
+        console.log('Tolerance:', tolerance)
+
+        const response = await fetch('/.netlify/functions/optimize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            batches: batches,
+            limits: limits,
+            tolerance: tolerance
+          })
         })
-      })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`API returned ${response.status}: ${errorText}`)
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}`)
+        }
+
+        const data = await response.json()
+
+        if (data.error) {
+          throw new Error(data.error)
+        }
+
+        console.log('✅ Optimization result from Python scipy:', data)
+        console.log('Ratios:', data.ratios)
+        console.log('Blended values:', data.blended_values)
+
+        setResults(data)
+        setLoading(false)
+        goToResults()
+        return
+      } catch (err) {
+        console.warn('⚠️ Python API failed, falling back to JS optimizer:', err.message)
+        // Fall through to JS optimizer
       }
+    } else {
+      console.log('🔧 Local development mode - using JS optimizer')
+      console.log('(Deploy to Netlify to use Python scipy optimizer)')
+    }
 
-      const data = await response.json()
-
-      // Check for error in response
-      if (data.error) {
-        throw new Error(data.error + (data.traceback ? '\n' + data.traceback : ''))
-      }
-
-      console.log('✅ Optimization result from Python API:', data)
+    // Use client-side JS optimizer (fallback or local dev)
+    try {
+      const data = optimizeMix(batches, limits, tolerance, {})
+      console.log('✅ Optimization complete (JS optimizer)')
       console.log('Ratios:', data.ratios)
-      console.log('Blended values:', data.blended_values)
-
       setResults(data)
       setLoading(false)
       goToResults()
     } catch (err) {
-      console.error('❌ Python API failed:', err)
+      console.error('❌ Optimization failed:', err)
       setLoading(false)
-
-      // Show detailed error and ask about fallback
-      const useFallback = confirm(
-        'Python optimization API failed:\n' + err.message +
-        '\n\nWould you like to use the client-side JavaScript optimizer instead?\n' +
-        '(Note: JS optimizer is less accurate than Python/scipy)'
-      )
-
-      if (useFallback) {
-        // Fallback to client-side optimizer if API fails
-        try {
-          console.log('⚠️ Using fallback JS optimizer...')
-          const data = optimizeMix(batches, limits, tolerance, {})
-          setResults(data)
-          goToResults()
-        } catch (fallbackErr) {
-          console.error('Fallback also failed:', fallbackErr)
-          alert('Both API and fallback optimization failed:\n' + fallbackErr.message)
-        }
-      }
+      alert('Optimisation failed: ' + err.message)
     }
   }
 
@@ -231,7 +232,10 @@ function App() {
       <footer className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 border-t border-slate-700 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <p className="text-center text-sm text-blue-200">
-            Soil Mixing Optimiser v2.0 | Advanced gradient descent optimisation
+            Soil Mixing Optimiser v2.0 |
+            {window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1')
+              ? ' Local development (JS optimizer)'
+              : ' Production (Python scipy optimizer)'}
           </p>
         </div>
       </footer>
