@@ -3,7 +3,7 @@
  * Implements the same algorithm as the Python version but in Node.js
  */
 
-export async function handler(event, context) {
+exports.handler = async function(event, context) {
   // Handle CORS preflight
   const headers = {
     'Access-Control-Allow-Origin': '*',
