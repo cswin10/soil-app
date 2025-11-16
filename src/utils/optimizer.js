@@ -5,16 +5,10 @@
 import { getPhDependentLimit } from './parameters.js'
 
 export function optimizeMix(batches, limits, tolerance = 0.75, materialConstraints = {}) {
-  console.log('🔍 OPTIMIZER CALLED')
-  console.log('Batches:', batches)
-  console.log('Limits:', limits)
-  console.log('Tolerance:', tolerance)
-
   const n_batches = batches.length
 
   // Get all parameter names (excluding 'name' field)
   const paramNames = Object.keys(batches[0]).filter(key => key !== 'name')
-  console.log('Parameter names:', paramNames)
 
   // Identify parameters with missing data (null values in any batch)
   const missingDataParams = paramNames.filter(param =>
@@ -182,7 +176,6 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
 
   // Run optimisation (Stage 1)
   let optimalRatios = optimize()
-  console.log('Optimal ratios (Stage 1):', optimalRatios)
 
   // TWO-STAGE OPTIMISATION FOR pH-DEPENDENT LIMITS
   // Check if we need to adjust limits based on pH
@@ -229,12 +222,7 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
   let withinToleranceCount = 0
 
   paramNames.forEach(param => {
-    const blended = optimalRatios.reduce((sum, ratio, i) => {
-      const value = batches[i][param]
-      console.log(`Batch ${i} (${batches[i].name}) ${param}: ${value}, ratio: ${ratio}, contribution: ${ratio * value}`)
-      return sum + ratio * value
-    }, 0)
-    console.log(`${param} blended value: ${blended}`)
+    const blended = optimalRatios.reduce((sum, ratio, i) => sum + ratio * batches[i][param], 0)
     blendedValues[param] = blended
 
     if (activeParams.includes(param)) {
