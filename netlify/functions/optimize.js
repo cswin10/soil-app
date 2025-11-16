@@ -126,90 +126,91 @@ function optimizeMix(batches, limits, tolerance = 0.75) {
     return true;
   }
 
-  // SLSQP-style optimization using constrained gradient descent
+  // Gradient descent with projection (matching client-side algorithm)
   function optimize() {
     // Start with equal proportions
     let ratios = new Array(nBatches).fill(1 / nBatches);
-    let learningRate = 0.1;
-    const maxIterations = 10000;
-    const minLearningRate = 1e-8;
+    const learningRate = 0.01;
+    const maxIterations = 5000;
     let bestRatios = [...ratios];
     let bestObjective = objective(ratios);
-    let noImprovementCount = 0;
 
     for (let iter = 0; iter < maxIterations; iter++) {
       // Calculate gradient numerically
       const gradient = new Array(nBatches).fill(0);
-      const epsilon = 1e-8;
-      const currentObj = objective(ratios);
+      const epsilon = 0.0001;
 
       for (let i = 0; i < nBatches; i++) {
         const ratiosPlus = [...ratios];
         ratiosPlus[i] += epsilon;
-        // Normalize to maintain sum = 1
-        const sum = ratiosPlus.reduce((a, b) => a + b, 0);
-        const normalized = ratiosPlus.map(r => r / sum);
-        const objPlus = objective(normalized);
-        gradient[i] = (objPlus - currentObj) / epsilon;
+        const objPlus = objective(ratiosPlus);
+        gradient[i] = (objPlus - objective(ratios)) / epsilon;
       }
 
       // Update ratios using gradient
-      let newRatios = ratios.map((r, i) => r - learningRate * gradient[i]);
+      const newRatios = ratios.map((r, i) => r - learningRate * gradient[i]);
 
-      // Project onto constraints
-      // 1. Ensure non-negative
-      newRatios = newRatios.map(r => Math.max(0, r));
+      // Project onto constraints (sum = 1, all >= 0)
+      const boundedRatios = newRatios.map(r => Math.max(0, r));
+      const sum = boundedRatios.reduce((a, b) => a + b, 0);
+      const projectedRatios = boundedRatios.map(r => r / (sum || 1));
 
-      // 2. Normalize to sum = 1
-      let sum = newRatios.reduce((a, b) => a + b, 0);
-      newRatios = newRatios.map(r => r / (sum || 1));
-
-      // 3. Check if parameter limits are violated, if so, adjust
-      let violatesConstraints = false;
-      for (const param of activeParams) {
-        const blended = newRatios.reduce((sum, ratio, i) => sum + ratio * batches[i][param], 0);
-        const lower = limits[param].lower;
-        const upper = limits[param].upper;
-
-        if (blended < lower || blended > upper) {
-          violatesConstraints = true;
-          break;
-        }
+      // Check if this is better AND satisfies constraints
+      const currentObj = objective(projectedRatios);
+      if (currentObj < bestObjective && checkConstraints(projectedRatios)) {
+        bestObjective = currentObj;
+        bestRatios = [...projectedRatios];
       }
 
-      // If constraints violated, reduce learning rate and try again
-      if (violatesConstraints) {
-        learningRate *= 0.5;
-        if (learningRate < minLearningRate) {
-          break;  // Can't make progress
-        }
-        continue;
-      }
+      // ALWAYS update ratios (don't get stuck!)
+      ratios = projectedRatios;
 
-      // Calculate new objective
-      const newObj = objective(newRatios);
+      // Early stopping if objective is very small
+      if (currentObj < 0.001) break;
+    }
 
-      // Update best if improved
-      if (newObj < bestObjective - 1e-9) {
-        bestObjective = newObj;
-        bestRatios = [...newRatios];
-        noImprovementCount = 0;
-      } else {
-        noImprovementCount++;
-      }
-
-      ratios = newRatios;
-
-      // Early stopping conditions
-      if (bestObjective < 1e-6) break;  // Optimal solution found
-      if (noImprovementCount > 100) {
-        learningRate *= 0.5;  // Reduce learning rate
-        noImprovementCount = 0;
-        if (learningRate < minLearningRate) break;
+    // If gradient descent didn't find valid solution, try exhaustive search
+    if (!checkConstraints(bestRatios) && nBatches <= 3) {
+      const searchResult = exhaustiveSearch(nBatches);
+      if (searchResult && checkConstraints(searchResult)) {
+        bestRatios = searchResult;
+        bestObjective = objective(searchResult);
       }
     }
 
     return bestRatios;
+  }
+
+  // Exhaustive search for small number of batches
+  function exhaustiveSearch(n) {
+    let best = null;
+    let bestObj = Infinity;
+
+    // Try combinations in steps of 0.05
+    const step = 0.05;
+    function search(ratios, remaining, depth) {
+      if (depth === n - 1) {
+        ratios[depth] = remaining;
+        if (Math.abs(remaining - Math.round(remaining / step) * step) < 0.01) {
+          if (checkConstraints(ratios)) {
+            const obj = objective(ratios);
+            if (obj < bestObj) {
+              bestObj = obj;
+              best = [...ratios];
+            }
+          }
+        }
+        return;
+      }
+
+      for (let r = 0; r <= remaining; r += step) {
+        ratios[depth] = r;
+        search(ratios, remaining - r, depth + 1);
+      }
+    }
+
+    search(new Array(n).fill(0), 1.0, 0);
+    return best;
   }
 
   // Run optimization
