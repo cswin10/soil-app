@@ -1,3 +1,6 @@
+import SoilTextureTriangle from './SoilTextureTriangle'
+import { generateCompliancePDF } from '../utils/pdfExport'
+
 function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {} }) {
   // Helper function: Calculate target value for a parameter
   // Zero-seeking: contaminants (lower=0) target 0, others target midpoint
@@ -137,6 +140,43 @@ function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {
 
   return (
     <div className="space-y-4 md:space-y-6 w-full max-w-full overflow-hidden">
+      {/* Missing Data Warning */}
+      {results.missing_data_params && results.missing_data_params.length > 0 && (
+        <div className="bg-orange-50 border-4 border-orange-500 rounded-2xl p-6 shadow-2xl">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <svg className="w-12 h-12 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-2xl font-bold text-orange-900 mb-2">
+                ⚠️ Missing Data Detected
+              </h3>
+              <p className="text-orange-800 mb-3">
+                The following parameters have missing data (N/A, -, or blank values) and were excluded from optimisation.
+                Results may not be fully representative of compliance.
+              </p>
+              <div className="bg-white border-2 border-orange-300 rounded-lg p-4">
+                <div className="font-bold text-orange-900 mb-2">
+                  Excluded Parameters ({results.missing_data_params.length}):
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {results.missing_data_params.map(param => (
+                    <span key={param} className="inline-block bg-orange-100 border border-orange-400 text-orange-900 px-3 py-1 rounded-lg font-semibold text-sm">
+                      {param}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-3 text-sm text-orange-700">
+                <strong>Recommendation:</strong> Obtain lab results for missing parameters before finalising blend for regulatory compliance.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Failing Parameters Alert */}
       {failingParams.length > 0 && (
         <div className="bg-red-50 border-4 border-red-600 rounded-2xl p-6 shadow-2xl">
@@ -563,18 +603,32 @@ function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {
         })()}
       </div>
 
+      {/* Soil Texture Triangle */}
+      <SoilTextureTriangle results={results} batches={batches} />
+
       {/* Parameter Results Table */}
       <div className="bg-white rounded-lg shadow-md p-4 md:p-6 w-full max-w-full overflow-hidden">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
           <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
             Parameter Analysis
           </h3>
-          <button
-            onClick={exportToCSV}
-            className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-4 rounded-md w-full sm:w-auto flex-shrink-0"
-          >
-            Export to CSV
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => generateCompliancePDF(batches, limits, results, tolerance, batchTonnages)}
+              className="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-md flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
+              </svg>
+              Export PDF Report
+            </button>
+            <button
+              onClick={exportToCSV}
+              className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-4 rounded-md"
+            >
+              Export to CSV
+            </button>
+          </div>
         </div>
 
         {/* Mobile Card View */}

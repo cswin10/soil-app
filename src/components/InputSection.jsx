@@ -184,8 +184,15 @@ function InputSection({ batches, setBatches, limits, setLimits, batchTonnages, s
 
       headers.forEach((header, idx) => {
         if (idx !== batchNameIndex) {
-          const value = parseFloat(values[idx])
-          batch[header] = isNaN(value) ? 0 : value
+          const rawValue = values[idx].trim().toLowerCase()
+
+          // Handle missing data: N/A, -, blank, or "n/a"
+          if (rawValue === '' || rawValue === 'n/a' || rawValue === '-' || rawValue === 'na') {
+            batch[header] = null  // null indicates missing data
+          } else {
+            const value = parseFloat(values[idx])
+            batch[header] = isNaN(value) ? 0 : value
+          }
         }
       })
 
@@ -500,7 +507,8 @@ Batch 2,9.0,22,77,2.8
 Batch 3,7.1,16,36,1.5`}
             </pre>
             <p className="text-xs text-blue-700 mt-2">
-              First column must be "Batch" or "Name". Optional "Lower Limit" and "Upper Limit" rows set custom screening limits. If omitted, default regulatory limits are used.
+              First column must be "Batch" or "Name". Optional "Lower Limit" and "Upper Limit" rows set custom screening limits.
+              Use N/A, -, or leave blank for missing data (parameters with missing data will be excluded from optimisation).
             </p>
           </div>
         </div>
