@@ -57,72 +57,63 @@ function App() {
     setResults(null)
   }
 
-  // Optimisation handler - uses Python API on Netlify, JS optimizer locally
+  // Optimisation handler - always uses Python scipy API
   const handleOptimize = async () => {
     setLoading(true)
 
-    // Check if we're in production (Netlify) or local dev
-    const isProduction = window.location.hostname !== 'localhost' && !window.location.hostname.includes('127.0.0.1')
-
-    // Try Python API first (only in production or if user has netlify dev running)
-    if (isProduction || window.location.hostname.includes('netlify')) {
-      try {
-        console.log('🚀 Calling Python scipy optimization API...')
-        console.log('Batches:', batches)
-        console.log('Limits:', limits)
-        console.log('Tolerance:', tolerance)
-
-        const response = await fetch('/.netlify/functions/optimize', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            batches: batches,
-            limits: limits,
-            tolerance: tolerance
-          })
-        })
-
-        if (!response.ok) {
-          throw new Error(`API returned ${response.status}`)
-        }
-
-        const data = await response.json()
-
-        if (data.error) {
-          throw new Error(data.error)
-        }
-
-        console.log('✅ Optimization result from Python scipy:', data)
-        console.log('Ratios:', data.ratios)
-        console.log('Blended values:', data.blended_values)
-
-        setResults(data)
-        setLoading(false)
-        goToResults()
-        return
-      } catch (err) {
-        console.warn('⚠️ Python API failed, falling back to JS optimizer:', err.message)
-        // Fall through to JS optimizer
-      }
-    } else {
-      console.log('🔧 Local development mode - using JS optimizer')
-      console.log('(Deploy to Netlify to use Python scipy optimizer)')
-    }
-
-    // Use client-side JS optimizer (fallback or local dev)
+    // Always try Python API first
     try {
-      const data = optimizeMix(batches, limits, tolerance, {})
-      console.log('✅ Optimization complete (JS optimizer)')
+      console.log('🚀 Calling Python scipy optimization API...')
+      console.log('Batches:', batches)
+      console.log('Limits:', limits)
+      console.log('Tolerance:', tolerance)
+
+      const response = await fetch('/.netlify/functions/optimize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          batches: batches,
+          limits: limits,
+          tolerance: tolerance
+        })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`API returned ${response.status}: ${errorText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.error) {
+        throw new Error(data.error + (data.traceback ? '\n' + data.traceback : ''))
+      }
+
+      console.log('✅ Optimization result from Python scipy:', data)
       console.log('Ratios:', data.ratios)
+      console.log('Blended values:', data.blended_values)
+
       setResults(data)
       setLoading(false)
       goToResults()
     } catch (err) {
-      console.error('❌ Optimization failed:', err)
+      console.error('❌ Python API failed:', err)
       setLoading(false)
-      alert('Optimisation failed: ' + err.message)
+
+      // Fallback to JS optimizer only if API completely fails
+      console.warn('⚠️ Falling back to client-side JS optimizer')
+      try {
+        const data = optimizeMix(batches, limits, tolerance, {})
+        console.log('✅ Optimization complete (JS optimizer fallback)')
+        console.log('Ratios:', data.ratios)
+        setResults(data)
+        goToResults()
+      } catch (fallbackErr) {
+        console.error('❌ Both API and fallback failed:', fallbackErr)
+        alert('Optimisation failed: ' + fallbackErr.message)
+      }
     }
   }
 
@@ -232,10 +223,7 @@ function App() {
       <footer className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 border-t border-slate-700 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <p className="text-center text-sm text-blue-200">
-            Soil Mixing Optimiser v2.0 |
-            {window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1')
-              ? ' Local development (JS optimizer)'
-              : ' Production (Python scipy optimizer)'}
+            Soil Mixing Optimiser v2.0 | Python scipy optimization with zero-seeking
           </p>
         </div>
       </footer>
