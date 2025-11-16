@@ -1,5 +1,5 @@
 /**
- * Client-side soil mixing optimizer using Sequential Quadratic Programming approximation
+ * Client-side soil mixing optimiser using gradient descent with constraint projection
  */
 
 export function optimizeMix(batches, limits, tolerance = 0.75, materialConstraints = {}) {
@@ -11,13 +11,23 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
   // Filter out parameters with upper limit = 9999 (ignore)
   const activeParams = paramNames.filter(p => limits[p]?.upper !== 9999)
 
-  // Calculate midpoints and ranges
-  const midpoints = {}
+  // Calculate targets and ranges
+  // CRITICAL FIX: Zero-seeking optimization for contaminants
+  // When lower limit = 0 (contaminants), target should be 0, not midpoint
+  const targets = {}
   const ranges = {}
   activeParams.forEach(param => {
     const lower = limits[param].lower
     const upper = limits[param].upper
-    midpoints[param] = (upper + lower) / 2
+
+    // Zero-seeking: if lower limit is 0, aim for 0 (minimize contamination)
+    // Otherwise, aim for midpoint (balance between limits)
+    if (lower === 0) {
+      targets[param] = 0  // Minimize contaminants to zero
+    } else {
+      targets[param] = (upper + lower) / 2  // Target midpoint for non-contaminants (e.g., pH, nutrients)
+    }
+
     ranges[param] = upper - lower || 1e-10 // Avoid division by zero
   })
 
@@ -26,7 +36,7 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
     let totalResidual = 0
     activeParams.forEach(param => {
       const blended = ratios.reduce((sum, ratio, i) => sum + ratio * batches[i][param], 0)
-      const residual = Math.abs(blended - midpoints[param]) / ranges[param]
+      const residual = Math.abs(blended - targets[param]) / ranges[param]
       totalResidual += residual
     })
     return totalResidual
@@ -171,11 +181,11 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
     if (activeParams.includes(param)) {
       const lower = limits[param].lower
       const upper = limits[param].upper
-      const midpoint = midpoints[param]
+      const target = targets[param]
       const paramRange = ranges[param]
 
-      // Calculate normalized residual
-      const residual = Math.abs(blended - midpoint) / paramRange
+      // Calculate normalized residual (distance from target)
+      const residual = Math.abs(blended - target) / paramRange
       residuals[param] = residual
 
       // Check if within limits
@@ -185,7 +195,7 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
 
       // Check if within tolerance
       const toleranceRange = paramRange * (1 - tolerance) / 2
-      if (Math.abs(blended - midpoint) <= toleranceRange) {
+      if (Math.abs(blended - target) <= toleranceRange) {
         withinToleranceCount++
       }
     }

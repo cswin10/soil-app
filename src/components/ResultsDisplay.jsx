@@ -1,9 +1,17 @@
-function ResultsDisplay({ results, batches, limits, tolerance }) {
+function ResultsDisplay({ results, batches, limits, tolerance, batchTonnages = {} }) {
+  // Helper function: Calculate target value for a parameter
+  // Zero-seeking: contaminants (lower=0) target 0, others target midpoint
+  const getTargetValue = (param) => {
+    const lower = limits[param].lower
+    const upper = limits[param].upper
+    return lower === 0 ? 0 : (upper + lower) / 2
+  }
+
   const exportToCSV = () => {
     const rows = []
 
     // Header
-    rows.push(['Soil Mixing Optimization Results'])
+    rows.push(['Soil Mixing Optimisation Results'])
     rows.push([])
 
     // Mixing Ratios
@@ -14,14 +22,14 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
     rows.push([])
 
     // Blended Values
-    rows.push(['Parameter', 'Blended Value', 'Lower Limit', 'Upper Limit', 'Midpoint', 'Normalized Residual', 'Status'])
+    rows.push(['Parameter', 'Blended Value', 'Lower Limit', 'Upper Limit', 'Target', 'Normalized Residual', 'Status'])
     Object.keys(limits).forEach(param => {
       if (limits[param].upper === 9999) return
 
       const blended = results.blended_values[param]
       const lower = limits[param].lower
       const upper = limits[param].upper
-      const midpoint = (upper + lower) / 2
+      const target = getTargetValue(param)
       const residual = results.residuals[param]
       const status = getParamStatus(param, blended, residual)
 
@@ -30,7 +38,7 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
         blended.toFixed(4),
         lower,
         upper,
-        midpoint.toFixed(2),
+        target.toFixed(2),
         residual.toFixed(4),
         status
       ])
@@ -71,12 +79,12 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
       return 'exceeds'
     }
 
-    // Check if within tolerance
-    const midpoint = (upper + lower) / 2
+    // Check if within tolerance (using target value, not midpoint)
+    const target = getTargetValue(param)
     const range = upper - lower
     const toleranceRange = range * (1 - tolerance) / 2
 
-    if (Math.abs(blendedValue - midpoint) <= toleranceRange) {
+    if (Math.abs(blendedValue - target) <= toleranceRange) {
       return 'within-tolerance'
     }
 
@@ -237,9 +245,9 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
         </p>
       </div>
 
-      {/* Optimization Transparency & Quality Metrics */}
+      {/* Optimisation Transparency & Quality Metrics */}
       <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl shadow-xl p-4 md:p-6 border-2 border-slate-300">
-        <h3 className="text-xl font-bold text-slate-900 mb-4">Optimization Details</h3>
+        <h3 className="text-xl font-bold text-slate-900 mb-4">Optimisation Details</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {/* Solution Quality */}
@@ -430,7 +438,7 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
                     </div>
                   </div>
                   <div className="mt-1 text-xs text-gray-600">
-                    Blended: {blended.toFixed(2)} | Target: {((limits[param].lower + limits[param].upper) / 2).toFixed(2)}
+                    Blended: {blended.toFixed(2)} | Target: {getTargetValue(param).toFixed(2)}
                   </div>
                 </div>
               )
@@ -471,6 +479,9 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold text-gray-900">
             Optimal Mixing Ratios
+            {Object.keys(batchTonnages).length > 0 && (
+              <span className="ml-2 text-sm font-normal text-blue-600">(with tonnage calculations)</span>
+            )}
           </h3>
           <button
             onClick={copyMixingInstructions}
@@ -481,21 +492,75 @@ function ResultsDisplay({ results, batches, limits, tolerance }) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {batches.map((batch, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-              <div className="text-sm font-medium text-gray-600">{batch.name}</div>
-              <div className="text-3xl font-bold text-gray-900 mt-1">
-                {(results.ratios[index] * 100).toFixed(2)}%
+          {batches.map((batch, index) => {
+            const ratio = results.ratios[index]
+            const hasTonnage = batchTonnages[index] !== undefined
+            const tonnageUsed = hasTonnage ? (ratio * batchTonnages[index]).toFixed(2) : null
+            const tonnageRemaining = hasTonnage ? (batchTonnages[index] - tonnageUsed).toFixed(2) : null
+
+            return (
+              <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="text-sm font-medium text-gray-600">{batch.name}</div>
+                <div className="text-3xl font-bold text-gray-900 mt-1">
+                  {(ratio * 100).toFixed(2)}%
+                </div>
+
+                {hasTonnage && (
+                  <div className="mt-3 space-y-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="text-xs text-blue-900">
+                      <span className="font-semibold">Available:</span> {batchTonnages[index].toFixed(1)} tonnes
+                    </div>
+                    <div className="text-sm text-blue-900 font-bold">
+                      <span className="font-semibold">Use:</span> {tonnageUsed} tonnes
+                    </div>
+                    <div className="text-xs text-green-700">
+                      <span className="font-semibold">Leftover:</span> {tonnageRemaining} tonnes
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-2 bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-green-600 rounded-full h-2"
+                    style={{ width: `${ratio * 100}%` }}
+                  ></div>
+                </div>
               </div>
-              <div className="mt-2 bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-green-600 rounded-full h-2"
-                  style={{ width: `${results.ratios[index] * 100}%` }}
-                ></div>
+            )
+          })}
+        </div>
+
+        {Object.keys(batchTonnages).length > 0 && (() => {
+          const totalUsed = batches.reduce((sum, batch, index) => {
+            if (batchTonnages[index] !== undefined) {
+              return sum + (results.ratios[index] * batchTonnages[index])
+            }
+            return sum
+          }, 0)
+
+          const totalAvailable = Object.values(batchTonnages).reduce((a, b) => a + b, 0)
+          const totalLeftover = totalAvailable - totalUsed
+
+          return (
+            <div className="mt-4 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-300 rounded-xl p-4">
+              <h4 className="font-bold text-green-900 mb-2">Total Material Summary</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                  <div className="text-xs text-gray-600">Total Available</div>
+                  <div className="text-xl font-bold text-gray-900 mt-1">{totalAvailable.toFixed(1)} tonnes</div>
+                </div>
+                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                  <div className="text-xs text-gray-600">Total to Use</div>
+                  <div className="text-xl font-bold text-blue-900 mt-1">{totalUsed.toFixed(1)} tonnes</div>
+                </div>
+                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                  <div className="text-xs text-gray-600">Total Leftover</div>
+                  <div className="text-xl font-bold text-green-900 mt-1">{totalLeftover.toFixed(1)} tonnes</div>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
+          )
+        })()}
       </div>
 
       {/* Parameter Results Table */}

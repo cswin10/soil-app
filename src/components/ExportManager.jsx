@@ -70,14 +70,15 @@ function ExportManager({ batches, limits, tolerance, results, materialConstraint
 
     // Screening Limits
     rows.push(['SCREENING LIMITS'])
-    rows.push(['Parameter', 'Lower Limit', 'Upper Limit', 'Midpoint', 'Range'])
+    rows.push(['Parameter', 'Lower Limit', 'Upper Limit', 'Target', 'Range'])
     params.forEach(param => {
       if (limits[param].upper === 9999) return
       const lower = limits[param].lower
       const upper = limits[param].upper
-      const midpoint = (lower + upper) / 2
+      // Zero-seeking: contaminants (lower=0) target 0, others target midpoint
+      const target = lower === 0 ? 0 : (lower + upper) / 2
       const range = upper - lower
-      rows.push([param, lower, upper, midpoint.toFixed(2), range.toFixed(2)])
+      rows.push([param, lower, upper, target.toFixed(2), range.toFixed(2)])
     })
     rows.push([])
 
@@ -108,22 +109,23 @@ function ExportManager({ batches, limits, tolerance, results, materialConstraint
       rows.push([])
 
       rows.push(['BLENDED VALUES & COMPLIANCE'])
-      rows.push(['Parameter', 'Blended', 'Lower Limit', 'Upper Limit', 'Midpoint', 'Residual', 'Status'])
+      rows.push(['Parameter', 'Blended', 'Lower Limit', 'Upper Limit', 'Target', 'Residual', 'Status'])
       params.forEach(param => {
         if (limits[param].upper === 9999) return
         const blended = results.blended_values[param]
         const lower = limits[param].lower
         const upper = limits[param].upper
-        const midpoint = (lower + upper) / 2
+        // Zero-seeking: contaminants (lower=0) target 0, others target midpoint
+        const target = lower === 0 ? 0 : (lower + upper) / 2
         const residual = results.residuals[param]
 
         let status = 'Unknown'
         if (blended < lower) status = 'Below Lower Limit'
         else if (blended > upper) status = 'Above Upper Limit'
-        else if (Math.abs(blended - midpoint) <= ((upper - lower) * (1 - tolerance) / 2)) status = 'Within Tolerance'
+        else if (Math.abs(blended - target) <= ((upper - lower) * (1 - tolerance) / 2)) status = 'Within Tolerance'
         else status = 'Within Limits'
 
-        rows.push([param, blended.toFixed(4), lower, upper, midpoint.toFixed(2), residual.toFixed(6), status])
+        rows.push([param, blended.toFixed(4), lower, upper, target.toFixed(2), residual.toFixed(6), status])
       })
       rows.push([])
 
