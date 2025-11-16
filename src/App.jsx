@@ -71,9 +71,9 @@ function App() {
     console.log('Tolerance:', tolerance)
     console.log('========================================')
 
-    // Always try Python API first
+    // Always try server-side API first
     try {
-      console.log('🚀 Calling Python scipy optimization API...')
+      console.log('🚀 Calling server-side optimization API...')
 
       const response = await fetch('/.netlify/functions/optimize', {
         method: 'POST',
@@ -98,7 +98,7 @@ function App() {
         throw new Error(data.error + (data.traceback ? '\n' + data.traceback : ''))
       }
 
-      console.log('✅ SUCCESS: Python scipy optimizer returned results')
+      console.log('✅ SUCCESS: Server-side optimizer returned results')
       console.log('Ratios:', data.ratios)
       console.log('Blended values:', data.blended_values)
       console.log('Total residual:', data.total_residual)
@@ -108,7 +108,7 @@ function App() {
       setLoading(false)
       goToResults()
     } catch (err) {
-      console.error('❌ Python API FAILED:', err)
+      console.error('❌ Server-side API FAILED:', err)
       console.error('Error message:', err.message)
       setLoading(false)
 
