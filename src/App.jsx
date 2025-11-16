@@ -6,7 +6,7 @@ import { optimizeMix } from './utils/optimizer'
 import { ALL_PARAMETERS } from './utils/parameters'
 
 function App() {
-  const [currentStep, setCurrentStep] = useState(1) // 1=Materials, 2=Optimize, 3=Results
+  const [currentStep, setCurrentStep] = useState(1) // 1=Materials, 2=Optimise, 3=Results
   const [batches, setBatches] = useState([])
   const [limits, setLimits] = useState({})
   const [tolerance, setTolerance] = useState(0.75)
@@ -57,7 +57,7 @@ function App() {
     setResults(null)
   }
 
-  // Optimization handler
+  // Optimisation handler
   const handleOptimize = () => {
     setLoading(true)
 
@@ -68,9 +68,9 @@ function App() {
         setLoading(false)
         goToResults()
       } catch (err) {
-        console.error('Optimization failed:', err)
+        console.error('Optimisation failed:', err)
         setLoading(false)
-        alert('Optimization failed: ' + (err.message || 'Unknown error'))
+        alert('Optimisation failed: ' + (err.message || 'Unknown error'))
       }
     }, 100)
   }
@@ -115,7 +115,7 @@ function App() {
             </div>
             <div className="w-12"></div>
             <div className={`text-xs ${currentStep >= 2 ? 'text-blue-200 font-semibold' : 'text-slate-400'}`}>
-              Optimize
+              Optimise
             </div>
             <div className="w-12"></div>
             <div className={`text-xs ${currentStep >= 3 ? 'text-blue-200 font-semibold' : 'text-slate-400'}`}>

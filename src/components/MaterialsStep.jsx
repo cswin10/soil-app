@@ -592,7 +592,7 @@ function MaterialsStep({ batches, setBatches, batchTonnages, setBatchTonnages, o
           disabled={batches.length < 2}
           className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-slate-400 disabled:to-slate-500 text-white font-bold px-8 py-4 rounded-xl shadow-lg transition-all text-lg flex items-center gap-2"
         >
-          Continue to Optimize
+          Continue to Optimise
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
           </svg>
@@ -607,7 +607,7 @@ function MaterialsStep({ batches, setBatches, batchTonnages, setBatchTonnages, o
 
       {batches.length >= 2 && !activeParamNames.includes('pH') && (
         <p className="text-center text-sm text-orange-600 font-semibold">
-          ⚠️ Warning: pH parameter is recommended for accurate optimization
+          ⚠️ Warning: pH parameter is recommended for accurate optimisation
         </p>
       )}
     </div>

@@ -21,7 +21,7 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
   )
 
   // Calculate targets and ranges
-  // CRITICAL FIX: Zero-seeking optimization for contaminants
+  // CRITICAL FIX: Zero-seeking optimisation for contaminants
   // When lower limit = 0 (contaminants), target should be 0, not midpoint
   const targets = {}
   const ranges = {}
@@ -29,10 +29,10 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
     const lower = limits[param].lower
     const upper = limits[param].upper
 
-    // Zero-seeking: if lower limit is 0, aim for 0 (minimize contamination)
+    // Zero-seeking: if lower limit is 0, aim for 0 (minimise contamination)
     // Otherwise, aim for midpoint (balance between limits)
     if (lower === 0) {
-      targets[param] = 0  // Minimize contaminants to zero
+      targets[param] = 0  // Minimise contaminants to zero
     } else {
       targets[param] = (upper + lower) / 2  // Target midpoint for non-contaminants (e.g., pH, nutrients)
     }
@@ -40,7 +40,7 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
     ranges[param] = upper - lower || 1e-10 // Avoid division by zero
   })
 
-  // Objective function: minimize sum of normalized residuals
+  // Objective function: minimise sum of normalised residuals
   function objective(ratios) {
     let totalResidual = 0
     activeParams.forEach(param => {
@@ -174,10 +174,10 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
     return best
   }
 
-  // Run optimization (Stage 1)
+  // Run optimisation (Stage 1)
   let optimalRatios = optimize()
 
-  // TWO-STAGE OPTIMIZATION FOR pH-DEPENDENT LIMITS
+  // TWO-STAGE OPTIMISATION FOR pH-DEPENDENT LIMITS
   // Check if we need to adjust limits based on pH
   const phDependentParams = ['Zinc', 'Copper', 'Nickel']
   const hasPhParam = activeParams.includes('pH')
@@ -190,7 +190,7 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
       return sum + (ratio * (phValue !== null && phValue !== undefined ? phValue : 7.0))
     }, 0)
 
-    // Stage 2: Adjust limits for pH-dependent metals and re-optimize
+    // Stage 2: Adjust limits for pH-dependent metals and re-optimise
     let limitsAdjusted = false
     const adjustedLimits = { ...limits }
 
@@ -204,7 +204,7 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
       }
     })
 
-    // If limits were adjusted, re-run optimization
+    // If limits were adjusted, re-run optimisation
     if (limitsAdjusted) {
       // Re-run with adjusted limits
       const stage2Result = optimizeMix(batches, adjustedLimits, tolerance, materialConstraints)
@@ -273,6 +273,6 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
     within_limits: withinLimits,
     suggested_tolerance: suggestedTolerance,
     missing_data_params: missingDataParams,  // Parameters with missing data that were skipped
-    message: withinLimits ? 'Optimization successful' : 'No valid solution found within limits'
+    message: withinLimits ? 'Optimisation successful' : 'No valid solution found within limits'
   }
 }

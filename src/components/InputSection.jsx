@@ -1031,7 +1031,7 @@ Batch 3,7.1,16,36,1.5`}
         {isExpanded && (
           <div className="bg-gradient-to-r from-blue-50 to-slate-50 border-t border-slate-200 px-4 sm:px-6 py-3 sm:py-4">
             <p className="text-xs text-slate-600">
-              <strong>Tip:</strong> Set upper limit to 9999 to ignore a parameter during optimization.
+              <strong>Tip:</strong> Set upper limit to 9999 to ignore a parameter during optimisation.
               All values are automatically saved as you type.
             </p>
           </div>

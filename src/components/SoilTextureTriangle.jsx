@@ -33,7 +33,7 @@ function SoilTextureTriangle({ results, batches }) {
     // Helper function to convert ternary coordinates to Cartesian
     // clay, silt, sand are percentages (0-100)
     function ternaryToCartesian(clay, silt, sand) {
-      // Normalize to 0-1
+      // Normalise to 0-1
       const total = clay + silt + sand
       const c = clay / total
       const si = silt / total
