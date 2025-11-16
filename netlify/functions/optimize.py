@@ -86,28 +86,46 @@ def optimize_mix(batches, limits, tolerance=0.75):
     # Get all parameter names (excluding 'name' field)
     param_names = [key for key in batches[0].keys() if key != 'name']
 
-    # Filter out parameters with upper limit = 9999 (ignore)
-    active_params = [p for p in param_names if limits.get(p, {}).get('upper', 9999) != 9999]
+    # Identify parameters with missing data (null values in any batch)
+    missing_data_params = [
+        param for param in param_names
+        if any(batches[i].get(param) is None for i in range(n_batches))
+    ]
 
-    # Calculate midpoints and ranges for active parameters
-    midpoints = {}
+    # Filter out parameters with upper limit = 9999 (ignore) AND parameters with missing data
+    active_params = [
+        p for p in param_names
+        if limits.get(p, {}).get('upper', 9999) != 9999
+        and p not in missing_data_params
+    ]
+
+    # Calculate targets and ranges for active parameters
+    # CRITICAL: Zero-seeking for contaminants (lower=0 means target 0, not midpoint)
+    targets = {}
     ranges = {}
     for param in active_params:
         lower = limits[param]['lower']
         upper = limits[param]['upper']
-        midpoints[param] = (upper + lower) / 2
+
+        # Zero-seeking: if lower limit is 0, aim for 0 (minimize contamination)
+        # Otherwise, aim for midpoint (balance between limits)
+        if lower == 0:
+            targets[param] = 0  # Minimize contaminants to zero
+        else:
+            targets[param] = (upper + lower) / 2  # Target midpoint for non-contaminants
+
         ranges[param] = upper - lower
 
         # Avoid division by zero
         if ranges[param] == 0:
             ranges[param] = 1e-10
 
-    # Objective function: minimize sum of normalized residuals
+    # Objective function: minimize sum of normalized residuals from TARGET (not midpoint)
     def objective(ratios):
         total_residual = 0
         for param in active_params:
             blended = sum(ratios[i] * batches[i][param] for i in range(n_batches))
-            residual = abs(blended - midpoints[param]) / ranges[param]
+            residual = abs(blended - targets[param]) / ranges[param]
             total_residual += residual
         return total_residual
 
@@ -163,11 +181,11 @@ def optimize_mix(batches, limits, tolerance=0.75):
         if param in active_params:
             lower = limits[param]['lower']
             upper = limits[param]['upper']
-            midpoint = midpoints[param]
+            target = targets[param]
             param_range = ranges[param]
 
-            # Calculate normalized residual
-            residual = abs(blended - midpoint) / param_range
+            # Calculate normalized residual from TARGET (not midpoint)
+            residual = abs(blended - target) / param_range
             residuals[param] = residual
 
             # Check if within limits
@@ -176,7 +194,7 @@ def optimize_mix(batches, limits, tolerance=0.75):
 
             # Check if within tolerance
             tolerance_range = param_range * (1 - tolerance) / 2
-            if abs(blended - midpoint) <= tolerance_range:
+            if abs(blended - target) <= tolerance_range:
                 within_tolerance_count += 1
 
     total_residual = sum(residuals.values())
@@ -198,5 +216,6 @@ def optimize_mix(batches, limits, tolerance=0.75):
         'within_tolerance': within_tolerance,
         'within_limits': within_limits,
         'suggested_tolerance': suggested_tolerance,
-        'message': opt_result.message if hasattr(opt_result, 'message') else ''
+        'missing_data_params': missing_data_params,
+        'message': 'Optimisation successful' if (opt_result.success and within_limits) else 'No valid solution found within limits'
     }
