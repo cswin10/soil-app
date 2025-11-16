@@ -5,6 +5,13 @@
 [functions]
   directory = "netlify/functions"
 
+# Don't redirect API calls
+[[redirects]]
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# Redirect all other routes to index.html for SPA routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
