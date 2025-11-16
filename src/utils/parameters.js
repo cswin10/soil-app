@@ -63,9 +63,9 @@ export const ALL_PARAMETERS = [
     name: 'Conductivity',
     category: PARAMETER_CATEGORIES.PHYSICAL,
     lower: 0,
-    upper: 2.0,
-    unit: 'mS/cm',
-    description: 'Electrical conductivity (salinity indicator)'
+    upper: 2000,
+    unit: 'μS/cm',
+    description: 'Electrical conductivity (salinity indicator, BS3882: <2000 μS/cm)'
   },
   {
     name: 'Sand',
@@ -105,9 +105,9 @@ export const ALL_PARAMETERS = [
     name: 'Nitrogen',
     category: PARAMETER_CATEGORIES.NUTRIENTS,
     lower: 0,
-    upper: 500,
+    upper: 5000,
     unit: 'mg/kg',
-    description: 'Total Nitrogen (fertility indicator)'
+    description: 'Total Nitrogen (fertility indicator, ~0.1-0.5% = 1000-5000 mg/kg typical)'
   },
   {
     name: 'Phosphorus',
@@ -121,7 +121,7 @@ export const ALL_PARAMETERS = [
     name: 'Potassium',
     category: PARAMETER_CATEGORIES.NUTRIENTS,
     lower: 0,
-    upper: 300,
+    upper: 500,
     unit: 'mg/kg',
     description: 'Available Potassium (K2O equivalent)'
   },
