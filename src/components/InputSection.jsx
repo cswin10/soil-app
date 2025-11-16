@@ -1,21 +1,11 @@
 import { useState, useEffect } from 'react'
 import ComplianceHeatmap from './ComplianceHeatmap'
+import { ALL_PARAMETERS, PARAMETER_CATEGORIES, getParametersByCategory, getDefaultParameters } from '../utils/parameters'
 
-// Common soil contaminant parameters with typical regulatory limits
-const DEFAULT_PARAMETERS = [
-  { name: 'pH', lower: 5.5, upper: 8.5, unit: '' },
-  { name: 'Arsenic', lower: 0, upper: 37, unit: 'mg/kg' },
-  { name: 'Lead', lower: 0, upper: 200, unit: 'mg/kg' },
-  { name: 'Cadmium', lower: 0, upper: 5, unit: 'mg/kg' },
-  { name: 'Chromium', lower: 0, upper: 100, unit: 'mg/kg' },
-  { name: 'Copper', lower: 0, upper: 150, unit: 'mg/kg' },
-  { name: 'Mercury', lower: 0, upper: 2, unit: 'mg/kg' },
-  { name: 'Nickel', lower: 0, upper: 50, unit: 'mg/kg' },
-  { name: 'Zinc', lower: 0, upper: 200, unit: 'mg/kg' },
-  { name: 'Selenium', lower: 0, upper: 10, unit: 'mg/kg' },
-]
+// Use commonly tested parameters by default for better UX
+const DEFAULT_PARAMETERS = getDefaultParameters()
 
-function InputSection({ batches, setBatches, limits, setLimits }) {
+function InputSection({ batches, setBatches, limits, setLimits, batchTonnages, setBatchTonnages }) {
   const [numBatches, setNumBatches] = useState(3)
   const [batchData, setBatchData] = useState({})
   const [isExpanded, setIsExpanded] = useState(true)
@@ -25,6 +15,9 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
   const [limitsProfiles, setLimitsProfiles] = useState([])
   const [showProfileManager, setShowProfileManager] = useState(false)
   const [newProfileName, setNewProfileName] = useState('')
+  const [showParameterSelector, setShowParameterSelector] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState(PARAMETER_CATEGORIES.HEAVY_METALS)
+  const [activeParameters, setActiveParameters] = useState(DEFAULT_PARAMETERS)
 
   // Initialize batches and limits
   useEffect(() => {
@@ -191,8 +184,15 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
 
       headers.forEach((header, idx) => {
         if (idx !== batchNameIndex) {
-          const value = parseFloat(values[idx])
-          batch[header] = isNaN(value) ? 0 : value
+          const rawValue = values[idx].trim().toLowerCase()
+
+          // Handle missing data: N/A, -, blank, or "n/a"
+          if (rawValue === '' || rawValue === 'n/a' || rawValue === '-' || rawValue === 'na') {
+            batch[header] = null  // null indicates missing data
+          } else {
+            const value = parseFloat(values[idx])
+            batch[header] = isNaN(value) ? 0 : value
+          }
         }
       })
 
@@ -272,8 +272,8 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
     const newBatchData = {}
     const newLimits = {}
 
-    // Initialize limits from default parameters
-    DEFAULT_PARAMETERS.forEach(param => {
+    // Initialize limits from active parameters
+    activeParameters.forEach(param => {
       newLimits[param.name] = { lower: param.lower, upper: param.upper }
     })
 
@@ -281,7 +281,7 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
     for (let i = 0; i < count; i++) {
       const batchName = `Batch ${i + 1}`
       const batchValues = {}
-      DEFAULT_PARAMETERS.forEach(param => {
+      activeParameters.forEach(param => {
         batchValues[param.name] = 0
       })
       newBatches.push({ name: batchName, ...batchValues })
@@ -292,6 +292,42 @@ function InputSection({ batches, setBatches, limits, setLimits }) {
     setBatchData(newBatchData)
     setLimits(newLimits)
     setNumBatches(count)
+  }
+
+  // Add parameter to active list
+  const addParameter = (param) => {
+    if (activeParameters.some(p => p.name === param.name)) return
+
+    const newActiveParams = [...activeParameters, param]
+    setActiveParameters(newActiveParams)
+
+    // Add to existing batches
+    const newBatches = batches.map(batch => ({ ...batch, [param.name]: 0 }))
+    setBatches(newBatches)
+
+    // Add to limits
+    setLimits(prev => ({
+      ...prev,
+      [param.name]: { lower: param.lower, upper: param.upper }
+    }))
+  }
+
+  // Remove parameter from active list
+  const removeParameter = (paramName) => {
+    const newActiveParams = activeParameters.filter(p => p.name !== paramName)
+    setActiveParameters(newActiveParams)
+
+    // Remove from batches
+    const newBatches = batches.map(batch => {
+      const { [paramName]: removed, ...rest } = batch
+      return rest
+    })
+    setBatches(newBatches)
+
+    // Remove from limits
+    const newLimits = { ...limits }
+    delete newLimits[paramName]
+    setLimits(newLimits)
   }
 
   const handleBatchCountChange = (count) => {
@@ -471,7 +507,8 @@ Batch 2,9.0,22,77,2.8
 Batch 3,7.1,16,36,1.5`}
             </pre>
             <p className="text-xs text-blue-700 mt-2">
-              First column must be "Batch" or "Name". Optional "Lower Limit" and "Upper Limit" rows set custom screening limits. If omitted, default regulatory limits are used.
+              First column must be "Batch" or "Name". Optional "Lower Limit" and "Upper Limit" rows set custom screening limits.
+              Use N/A, -, or leave blank for missing data (parameters with missing data will be excluded from optimisation).
             </p>
           </div>
         </div>
@@ -565,9 +602,245 @@ Batch 3,7.1,16,36,1.5`}
         </div>
       </div>
 
+      {/* Parameter Selector */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-200 overflow-hidden w-full max-w-full">
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900">Parameter Selection</h2>
+              <p className="text-xs sm:text-sm text-slate-600 mt-1">
+                {activeParameters.length} parameters active • Choose from {ALL_PARAMETERS.length} available parameters
+              </p>
+            </div>
+            <button
+              onClick={() => setShowParameterSelector(!showParameterSelector)}
+              className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105 text-sm whitespace-nowrap"
+            >
+              {showParameterSelector ? 'Hide' : 'Add/Remove Parameters'}
+            </button>
+          </div>
+
+          {/* Active Parameters Summary */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 mb-4">
+            <h3 className="font-semibold text-blue-900 mb-2">Active Parameters ({activeParameters.length})</h3>
+            <div className="flex flex-wrap gap-2">
+              {activeParameters.map(param => (
+                <div key={param.name} className="inline-flex items-center gap-2 bg-white border-2 border-blue-300 rounded-lg px-3 py-1 text-sm">
+                  <span className="font-medium text-blue-900">{param.name}</span>
+                  {param.unit && <span className="text-xs text-blue-600">({param.unit})</span>}
+                  <button
+                    onClick={() => removeParameter(param.name)}
+                    className="text-red-600 hover:text-red-800 ml-1"
+                    title="Remove parameter"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {showParameterSelector && (
+            <div className="space-y-4">
+              {/* Category Tabs */}
+              <div className="flex flex-wrap gap-2 border-b-2 border-slate-200 pb-3">
+                {Object.values(PARAMETER_CATEGORIES).map(category => {
+                  const categoryParams = ALL_PARAMETERS.filter(p => p.category === category)
+                  const activeCount = categoryParams.filter(p => activeParameters.some(ap => ap.name === p.name)).length
+
+                  return (
+                    <button
+                      key={category}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
+                        selectedCategory === category
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {category.split(' ')[0]}
+                      <span className="ml-2 text-xs opacity-80">({activeCount}/{categoryParams.length})</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Parameters in Selected Category */}
+              <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4">
+                <h3 className="font-bold text-slate-900 mb-3">{selectedCategory}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {ALL_PARAMETERS
+                    .filter(p => p.category === selectedCategory)
+                    .map(param => {
+                      const isActive = activeParameters.some(p => p.name === param.name)
+                      return (
+                        <div
+                          key={param.name}
+                          className={`border-2 rounded-lg p-3 transition-all ${
+                            isActive
+                              ? 'bg-green-50 border-green-400'
+                              : 'bg-white border-slate-200 hover:border-blue-300'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <div className="font-semibold text-slate-900">
+                                {param.name}
+                                {param.unit && <span className="ml-2 text-xs text-slate-600">({param.unit})</span>}
+                                {param.phDependent && <span className="ml-2 text-xs bg-yellow-200 text-yellow-900 px-2 py-0.5 rounded">pH dependent</span>}
+                              </div>
+                              <div className="text-xs text-slate-600 mt-1">{param.description}</div>
+                              <div className="text-xs text-slate-500 mt-1">
+                                Limits: {param.lower} - {param.upper} {param.unit}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => isActive ? removeParameter(param.name) : addParameter(param)}
+                              className={`px-3 py-1 rounded-lg font-semibold text-sm transition-colors ${
+                                isActive
+                                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                              }`}
+                            >
+                              {isActive ? 'Remove' : 'Add'}
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => {
+                    const categoryParams = ALL_PARAMETERS.filter(p => p.category === selectedCategory)
+                    categoryParams.forEach(param => addParameter(param))
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+                >
+                  Add All in {selectedCategory.split(' ')[0]}
+                </button>
+                <button
+                  onClick={() => {
+                    const categoryParams = ALL_PARAMETERS.filter(p => p.category === selectedCategory)
+                    categoryParams.forEach(param => removeParameter(param.name))
+                  }}
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+                >
+                  Remove All in {selectedCategory.split(' ')[0]}
+                </button>
+                <button
+                  onClick={() => {
+                    ALL_PARAMETERS.forEach(param => addParameter(param))
+                  }}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+                >
+                  Add All {ALL_PARAMETERS.length} Parameters
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveParameters(DEFAULT_PARAMETERS)
+                    initializeBatches(numBatches)
+                  }}
+                  className="bg-slate-600 hover:bg-slate-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+                >
+                  Reset to Default
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Compliance Heatmap */}
       {batches.length > 0 && Object.keys(limits).length > 0 && (
         <ComplianceHeatmap batches={batches} limits={limits} />
+      )}
+
+      {/* Batch Tonnage Input */}
+      {batches.length >= 2 && (
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 mb-8 border border-slate-200">
+          <div className="flex-1 mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+              Batch Tonnage (Optional)
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 mt-1">
+              Enter the available weight for each batch to calculate actual usage and leftovers
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {batches.map((batch, index) => (
+              <div key={index} className="bg-gradient-to-r from-slate-50 to-gray-50 border-2 border-slate-200 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="font-semibold text-slate-900 text-lg">{batch.name}</div>
+                  {batchTonnages[index] && (
+                    <button
+                      onClick={() => {
+                        const newTonnages = { ...batchTonnages }
+                        delete newTonnages[index]
+                        setBatchTonnages(newTonnages)
+                      }}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder="0"
+                    value={batchTonnages[index] || ''}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value)
+                      if (!isNaN(value) && value >= 0) {
+                        setBatchTonnages(prev => ({
+                          ...prev,
+                          [index]: value
+                        }))
+                      } else if (e.target.value === '') {
+                        const newTonnages = { ...batchTonnages }
+                        delete newTonnages[index]
+                        setBatchTonnages(newTonnages)
+                      }
+                    }}
+                    className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg text-center font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <span className="text-slate-700 font-semibold">tonnes</span>
+                </div>
+
+                {batchTonnages[index] && (
+                  <div className="mt-2 text-xs text-slate-600 bg-blue-50 border border-blue-200 rounded px-3 py-2">
+                    Available: {batchTonnages[index].toFixed(1)} tonnes
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {Object.keys(batchTonnages).length > 0 && (
+            <div className="mt-4 bg-green-50 border-2 border-green-300 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-green-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-green-900">Tonnage Tracking Active</p>
+                  <p className="text-xs text-green-800 mt-1">
+                    Results will show actual tonnes to use and remaining material for each batch.
+                    Total available: {Object.values(batchTonnages).reduce((a, b) => a + b, 0).toFixed(1)} tonnes
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Configuration Header - Manual Entry */}
@@ -624,7 +897,7 @@ Batch 3,7.1,16,36,1.5`}
         {isExpanded && batches.length > 0 && (
           <div className="block xl:hidden border-t border-slate-200">
             <div className="p-4 space-y-3">
-              {DEFAULT_PARAMETERS.map((param, paramIdx) => (
+              {activeParameters.map((param, paramIdx) => (
                 <div key={param.name} className="border-2 border-slate-200 rounded-xl overflow-hidden">
                   <div className="bg-gradient-to-r from-slate-100 to-blue-100 px-4 py-3 border-b border-slate-200">
                     <div className="font-bold text-slate-900 text-sm">
@@ -707,7 +980,7 @@ Batch 3,7.1,16,36,1.5`}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-200">
-                  {DEFAULT_PARAMETERS.map((param, paramIdx) => (
+                  {activeParameters.map((param, paramIdx) => (
                     <tr key={param.name} className={paramIdx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">

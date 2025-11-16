@@ -1,6 +1,8 @@
 /**
- * Client-side soil mixing optimizer using Sequential Quadratic Programming approximation
+ * Client-side soil mixing optimiser using gradient descent with constraint projection
  */
+
+import { getPhDependentLimit } from './parameters.js'
 
 export function optimizeMix(batches, limits, tolerance = 0.75, materialConstraints = {}) {
   const n_batches = batches.length
@@ -8,16 +10,33 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
   // Get all parameter names (excluding 'name' field)
   const paramNames = Object.keys(batches[0]).filter(key => key !== 'name')
 
-  // Filter out parameters with upper limit = 9999 (ignore)
-  const activeParams = paramNames.filter(p => limits[p]?.upper !== 9999)
+  // Identify parameters with missing data (null values in any batch)
+  const missingDataParams = paramNames.filter(param =>
+    batches.some(batch => batch[param] === null || batch[param] === undefined)
+  )
 
-  // Calculate midpoints and ranges
-  const midpoints = {}
+  // Filter out parameters with upper limit = 9999 (ignore) AND parameters with missing data
+  const activeParams = paramNames.filter(p =>
+    limits[p]?.upper !== 9999 && !missingDataParams.includes(p)
+  )
+
+  // Calculate targets and ranges
+  // CRITICAL FIX: Zero-seeking optimization for contaminants
+  // When lower limit = 0 (contaminants), target should be 0, not midpoint
+  const targets = {}
   const ranges = {}
   activeParams.forEach(param => {
     const lower = limits[param].lower
     const upper = limits[param].upper
-    midpoints[param] = (upper + lower) / 2
+
+    // Zero-seeking: if lower limit is 0, aim for 0 (minimize contamination)
+    // Otherwise, aim for midpoint (balance between limits)
+    if (lower === 0) {
+      targets[param] = 0  // Minimize contaminants to zero
+    } else {
+      targets[param] = (upper + lower) / 2  // Target midpoint for non-contaminants (e.g., pH, nutrients)
+    }
+
     ranges[param] = upper - lower || 1e-10 // Avoid division by zero
   })
 
@@ -26,7 +45,7 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
     let totalResidual = 0
     activeParams.forEach(param => {
       const blended = ratios.reduce((sum, ratio, i) => sum + ratio * batches[i][param], 0)
-      const residual = Math.abs(blended - midpoints[param]) / ranges[param]
+      const residual = Math.abs(blended - targets[param]) / ranges[param]
       totalResidual += residual
     })
     return totalResidual
@@ -155,8 +174,46 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
     return best
   }
 
-  // Run optimization
-  const optimalRatios = optimize()
+  // Run optimization (Stage 1)
+  let optimalRatios = optimize()
+
+  // TWO-STAGE OPTIMIZATION FOR pH-DEPENDENT LIMITS
+  // Check if we need to adjust limits based on pH
+  const phDependentParams = ['Zinc', 'Copper', 'Nickel']
+  const hasPhParam = activeParams.includes('pH')
+  const hasPhDependentParams = phDependentParams.some(p => activeParams.includes(p))
+
+  if (hasPhParam && hasPhDependentParams) {
+    // Stage 1: Calculate blended pH with initial ratios
+    const blendedPh = optimalRatios.reduce((sum, ratio, i) => {
+      const phValue = batches[i]['pH']
+      return sum + (ratio * (phValue !== null && phValue !== undefined ? phValue : 7.0))
+    }, 0)
+
+    // Stage 2: Adjust limits for pH-dependent metals and re-optimize
+    let limitsAdjusted = false
+    const adjustedLimits = { ...limits }
+
+    phDependentParams.forEach(param => {
+      if (activeParams.includes(param)) {
+        const newLimit = getPhDependentLimit(param, blendedPh)
+        if (newLimit && (newLimit.upper !== limits[param].upper || newLimit.lower !== limits[param].lower)) {
+          adjustedLimits[param] = newLimit
+          limitsAdjusted = true
+        }
+      }
+    })
+
+    // If limits were adjusted, re-run optimization
+    if (limitsAdjusted) {
+      // Re-run with adjusted limits
+      const stage2Result = optimizeMix(batches, adjustedLimits, tolerance, materialConstraints)
+      // Use stage 2 ratios if they're valid
+      if (stage2Result.success || stage2Result.within_limits) {
+        optimalRatios = stage2Result.ratios
+      }
+    }
+  }
 
   // Calculate blended values and residuals
   const blendedValues = {}
@@ -171,11 +228,11 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
     if (activeParams.includes(param)) {
       const lower = limits[param].lower
       const upper = limits[param].upper
-      const midpoint = midpoints[param]
+      const target = targets[param]
       const paramRange = ranges[param]
 
-      // Calculate normalized residual
-      const residual = Math.abs(blended - midpoint) / paramRange
+      // Calculate normalized residual (distance from target)
+      const residual = Math.abs(blended - target) / paramRange
       residuals[param] = residual
 
       // Check if within limits
@@ -185,7 +242,7 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
 
       // Check if within tolerance
       const toleranceRange = paramRange * (1 - tolerance) / 2
-      if (Math.abs(blended - midpoint) <= toleranceRange) {
+      if (Math.abs(blended - target) <= toleranceRange) {
         withinToleranceCount++
       }
     }
@@ -215,6 +272,7 @@ export function optimizeMix(batches, limits, tolerance = 0.75, materialConstrain
     within_tolerance: withinTolerance,
     within_limits: withinLimits,
     suggested_tolerance: suggestedTolerance,
+    missing_data_params: missingDataParams,  // Parameters with missing data that were skipped
     message: withinLimits ? 'Optimization successful' : 'No valid solution found within limits'
   }
 }

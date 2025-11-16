@@ -11,6 +11,7 @@ function App() {
   const [autoRelax, setAutoRelax] = useState(false)
   const [materialConstraints, setMaterialConstraints] = useState({}) // { batchIndex: { min: 0, max: 1 } }
   const [showConstraints, setShowConstraints] = useState(false)
+  const [batchTonnages, setBatchTonnages] = useState({}) // { batchIndex: tonnage in tonnes }
   const [results, setResults] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -85,7 +86,7 @@ function App() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white tracking-tight">
-                Soil Mixing Optimizer
+                Soil Mixing Optimiser
               </h1>
               <p className="mt-1 sm:mt-2 text-sm sm:text-base lg:text-lg text-blue-200">
                 Precision blending for environmental compliance
@@ -108,6 +109,8 @@ function App() {
           setBatches={setBatches}
           limits={limits}
           setLimits={setLimits}
+          batchTonnages={batchTonnages}
+          setBatchTonnages={setBatchTonnages}
         />
 
         {/* Export Manager */}
@@ -232,10 +235,10 @@ function App() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div className="flex-1">
                 <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-                  Optimization Tolerance
+                  Optimisation Tolerance
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-600 mt-1">
-                  How close to the ideal midpoint should values be?
+                  How close to the ideal target should values be?
                 </p>
               </div>
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl shadow-lg">
@@ -327,12 +330,12 @@ function App() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Calculating Optimal Mix...
+                  Calculating Optimum Mix...
                 </span>
               ) : (
                 <span className="flex items-center justify-center">
                   <span className="mr-3">⚗️</span>
-                  Find Optimal Mix
+                  Find Optimum Mix
                   <span className="ml-3">→</span>
                 </span>
               )}
@@ -346,7 +349,7 @@ function App() {
             <div className="flex items-center">
               <span className="text-3xl mr-4">⚠️</span>
               <div>
-                <h3 className="text-lg font-bold text-red-900 mb-1">Optimization Error</h3>
+                <h3 className="text-lg font-bold text-red-900 mb-1">Optimisation Error</h3>
                 <p className="text-sm text-red-800">{error}</p>
               </div>
             </div>
@@ -360,6 +363,7 @@ function App() {
             batches={batches}
             limits={limits}
             tolerance={tolerance}
+            batchTonnages={batchTonnages}
           />
         )}
       </main>
@@ -368,7 +372,7 @@ function App() {
       <footer className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 border-t border-slate-700 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <p className="text-center text-sm text-blue-200">
-            Soil Mixing Optimizer v2.0 | Powered by scipy.optimize SLSQP algorithm
+            Soil Mixing Optimiser v2.0 | Advanced gradient descent optimisation
           </p>
         </div>
       </footer>
