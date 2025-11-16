@@ -61,12 +61,19 @@ function App() {
   const handleOptimize = async () => {
     setLoading(true)
 
+    console.log('========================================')
+    console.log('🔬 OPTIMIZATION DEBUG INFO')
+    console.log('========================================')
+    console.log('Number of batches:', batches.length)
+    console.log('Batch names:', batches.map(b => b.name))
+    console.log('Full batches data:', JSON.stringify(batches, null, 2))
+    console.log('Number of limits:', Object.keys(limits).length)
+    console.log('Tolerance:', tolerance)
+    console.log('========================================')
+
     // Always try Python API first
     try {
       console.log('🚀 Calling Python scipy optimization API...')
-      console.log('Batches:', batches)
-      console.log('Limits:', limits)
-      console.log('Tolerance:', tolerance)
 
       const response = await fetch('/.netlify/functions/optimize', {
         method: 'POST',
@@ -91,23 +98,30 @@ function App() {
         throw new Error(data.error + (data.traceback ? '\n' + data.traceback : ''))
       }
 
-      console.log('✅ Optimization result from Python scipy:', data)
+      console.log('✅ SUCCESS: Python scipy optimizer returned results')
       console.log('Ratios:', data.ratios)
       console.log('Blended values:', data.blended_values)
+      console.log('Total residual:', data.total_residual)
+      console.log('========================================')
 
       setResults(data)
       setLoading(false)
       goToResults()
     } catch (err) {
-      console.error('❌ Python API failed:', err)
+      console.error('❌ Python API FAILED:', err)
+      console.error('Error message:', err.message)
       setLoading(false)
 
       // Fallback to JS optimizer only if API completely fails
-      console.warn('⚠️ Falling back to client-side JS optimizer')
+      console.warn('⚠️ FALLING BACK to client-side JS optimizer')
+      console.log('========================================')
       try {
         const data = optimizeMix(batches, limits, tolerance, {})
-        console.log('✅ Optimization complete (JS optimizer fallback)')
+        console.log('✅ JS optimizer returned results')
         console.log('Ratios:', data.ratios)
+        console.log('Blended values:', data.blended_values)
+        console.log('Total residual:', data.total_residual)
+        console.log('========================================')
         setResults(data)
         goToResults()
       } catch (fallbackErr) {
