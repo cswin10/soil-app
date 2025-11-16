@@ -94,13 +94,37 @@ function MaterialsStep({ batches, setBatches, batchTonnages, setBatchTonnages, o
     }))
   }
 
-  // CSV Upload
+  // CSV Upload - DEFENSIVE PARSING
   const parseCSV = (text) => {
-    const lines = text.split('\n').filter(line => line.trim())
-    if (lines.length < 2) throw new Error('File must contain header row and at least one data row')
+    if (!text || typeof text !== 'string') {
+      throw new Error('Invalid CSV file - empty or corrupted')
+    }
 
-    const headers = lines[0].split(',').map(h => h.trim())
-    const batchNameIndex = headers.findIndex(h => h.toLowerCase() === 'batch' || h.toLowerCase() === 'name')
+    // Split into lines and filter out completely empty lines
+    const lines = text.split('\n').filter(line => {
+      const trimmed = line?.trim() || ''
+      return trimmed.length > 0
+    })
+
+    if (lines.length < 2) {
+      throw new Error('CSV must contain header row and at least one data row')
+    }
+
+    // Parse headers with defensive checks
+    const headers = lines[0].split(',').map(h => {
+      const trimmed = (h !== undefined && h !== null) ? String(h).trim() : ''
+      return trimmed
+    }).filter(h => h.length > 0)
+
+    if (headers.length === 0) {
+      throw new Error('CSV format error: No valid headers found')
+    }
+
+    // Find batch name column
+    const batchNameIndex = headers.findIndex(h => {
+      const lower = h.toLowerCase()
+      return lower === 'batch' || lower === 'name'
+    })
 
     if (batchNameIndex === -1) {
       throw new Error('CSV must contain a "Batch" or "Name" column')
@@ -110,42 +134,74 @@ function MaterialsStep({ batches, setBatches, batchTonnages, setBatchTonnages, o
     const detectedParameters = []
     const parameterNames = headers.filter((_, idx) => idx !== batchNameIndex)
 
-    // Match CSV headers to parameter database
+    // Match CSV headers to parameter database with defensive checks
     parameterNames.forEach(csvHeader => {
-      const matchedParam = ALL_PARAMETERS.find(p =>
-        p.name.toLowerCase() === csvHeader.toLowerCase()
-      )
-      if (matchedParam) {
+      if (!csvHeader || csvHeader.length === 0) return
+
+      const matchedParam = ALL_PARAMETERS.find(p => {
+        const paramName = p?.name || ''
+        const headerName = csvHeader || ''
+        return paramName.toLowerCase() === headerName.toLowerCase()
+      })
+
+      if (matchedParam && !detectedParameters.includes(matchedParam.name)) {
         detectedParameters.push(matchedParam.name)
       }
     })
 
-    // Parse data rows
+    // Parse data rows with defensive checks
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim())
-      const batchName = values[batchNameIndex]
+      const line = lines[i]
+      if (!line || line.trim().length === 0) continue
+
+      const values = line.split(',').map(v => {
+        return (v !== undefined && v !== null) ? String(v).trim() : ''
+      })
+
+      // Ensure we have enough values
+      if (values.length === 0 || batchNameIndex >= values.length) continue
+
+      const batchName = values[batchNameIndex] || `Material ${i}`
 
       const batch = { name: batchName }
-      headers.forEach((header, idx) => {
-        if (idx !== batchNameIndex) {
-          // Try to match parameter
-          const matchedParam = ALL_PARAMETERS.find(p =>
-            p.name.toLowerCase() === header.toLowerCase()
-          )
 
-          if (matchedParam) {
-            const rawValue = values[idx].trim().toLowerCase()
-            if (rawValue === '' || rawValue === 'n/a' || rawValue === '-' || rawValue === 'na') {
-              batch[matchedParam.name] = null
-            } else {
-              const value = parseFloat(values[idx])
-              batch[matchedParam.name] = isNaN(value) ? 0 : value
-            }
+      headers.forEach((header, idx) => {
+        if (idx === batchNameIndex || !header) return
+
+        // Try to match parameter
+        const matchedParam = ALL_PARAMETERS.find(p => {
+          const paramName = p?.name || ''
+          const headerName = header || ''
+          return paramName.toLowerCase() === headerName.toLowerCase()
+        })
+
+        if (matchedParam) {
+          // Defensive value extraction
+          const cellValue = (idx < values.length) ? values[idx] : ''
+          const rawValue = String(cellValue || '').trim().toLowerCase()
+
+          // Handle missing data
+          if (rawValue === '' || rawValue === 'n/a' || rawValue === '-' || rawValue === 'na' || rawValue === 'null') {
+            batch[matchedParam.name] = null
+          } else {
+            const numValue = parseFloat(cellValue)
+            batch[matchedParam.name] = isNaN(numValue) ? null : numValue
           }
         }
       })
 
-      newBatches.push(batch)
+      // Only add batch if it has at least one parameter value
+      if (Object.keys(batch).length > 1) {
+        newBatches.push(batch)
+      }
+    }
+
+    if (newBatches.length === 0) {
+      throw new Error('No valid data rows found in CSV')
+    }
+
+    if (detectedParameters.length === 0) {
+      throw new Error('No recognized parameters found. Please check column names match parameter database.')
     }
 
     return { batches: newBatches, detectedParameters }
@@ -204,38 +260,6 @@ function MaterialsStep({ batches, setBatches, batchTonnages, setBatchTonnages, o
     if (files.length > 0) {
       handleFileUpload(files[0])
     }
-  }
-
-  // Generate example CSV with all 71 parameters
-  const downloadExampleCSV = () => {
-    const headers = ['Batch', ...ALL_PARAMETERS.map(p => p.name)]
-    const exampleRow1 = ['Material 1', ...ALL_PARAMETERS.map(p => {
-      if (p.name === 'pH') return '7.2'
-      if (p.lower === 0) return '5.0' // Contaminant
-      return ((p.upper + p.lower) / 2).toFixed(1) // Midpoint
-    })]
-    const exampleRow2 = ['Material 2', ...ALL_PARAMETERS.map(p => {
-      if (p.name === 'pH') return '6.8'
-      if (p.lower === 0) return '8.5' // Contaminant
-      return ((p.upper + p.lower) / 2 * 1.1).toFixed(1) // Slight variation
-    })]
-    const exampleRow3 = ['Material 3', ...ALL_PARAMETERS.map(p => {
-      if (p.name === 'pH') return '7.5'
-      if (p.lower === 0) return '3.2' // Contaminant
-      return ((p.upper + p.lower) / 2 * 0.9).toFixed(1) // Slight variation
-    })]
-
-    const csv = [headers, exampleRow1, exampleRow2, exampleRow3]
-      .map(row => row.join(','))
-      .join('\n')
-
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'soil-analysis-template-71-parameters.csv'
-    a.click()
-    URL.revokeObjectURL(url)
   }
 
   // Count parameters by category
@@ -303,18 +327,6 @@ function MaterialsStep({ batches, setBatches, batchTonnages, setBatchTonnages, o
               <p className="text-white text-lg mt-4 font-semibold">or drag and drop your file here</p>
             </div>
           </div>
-        </div>
-
-        <div className="mt-6 flex items-center justify-center gap-4">
-          <button
-            onClick={downloadExampleCSV}
-            className="bg-white/20 hover:bg-white/30 text-white px-6 py-3 rounded-lg font-semibold transition-colors border-2 border-white/50 flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Download Example CSV (71 Parameters)
-          </button>
         </div>
 
         {uploadSuccess && (
