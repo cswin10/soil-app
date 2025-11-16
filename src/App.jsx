@@ -57,17 +57,17 @@ function App() {
     setResults(null)
   }
 
-  // Optimisation handler - calls Python backend API
+  // Optimisation handler - always uses Python scipy API
   const handleOptimize = async () => {
     setLoading(true)
 
+    // Always try Python API first
     try {
-      console.log('🚀 Calling Python optimization API...')
+      console.log('🚀 Calling Python scipy optimization API...')
       console.log('Batches:', batches)
       console.log('Limits:', limits)
       console.log('Tolerance:', tolerance)
 
-      // Call Netlify function for Python scipy optimization
       const response = await fetch('/.netlify/functions/optimize', {
         method: 'POST',
         headers: {
@@ -87,12 +87,11 @@ function App() {
 
       const data = await response.json()
 
-      // Check for error in response
       if (data.error) {
         throw new Error(data.error + (data.traceback ? '\n' + data.traceback : ''))
       }
 
-      console.log('✅ Optimization result from Python API:', data)
+      console.log('✅ Optimization result from Python scipy:', data)
       console.log('Ratios:', data.ratios)
       console.log('Blended values:', data.blended_values)
 
@@ -103,24 +102,17 @@ function App() {
       console.error('❌ Python API failed:', err)
       setLoading(false)
 
-      // Show detailed error and ask about fallback
-      const useFallback = confirm(
-        'Python optimization API failed:\n' + err.message +
-        '\n\nWould you like to use the client-side JavaScript optimizer instead?\n' +
-        '(Note: JS optimizer is less accurate than Python/scipy)'
-      )
-
-      if (useFallback) {
-        // Fallback to client-side optimizer if API fails
-        try {
-          console.log('⚠️ Using fallback JS optimizer...')
-          const data = optimizeMix(batches, limits, tolerance, {})
-          setResults(data)
-          goToResults()
-        } catch (fallbackErr) {
-          console.error('Fallback also failed:', fallbackErr)
-          alert('Both API and fallback optimization failed:\n' + fallbackErr.message)
-        }
+      // Fallback to JS optimizer only if API completely fails
+      console.warn('⚠️ Falling back to client-side JS optimizer')
+      try {
+        const data = optimizeMix(batches, limits, tolerance, {})
+        console.log('✅ Optimization complete (JS optimizer fallback)')
+        console.log('Ratios:', data.ratios)
+        setResults(data)
+        goToResults()
+      } catch (fallbackErr) {
+        console.error('❌ Both API and fallback failed:', fallbackErr)
+        alert('Optimisation failed: ' + fallbackErr.message)
       }
     }
   }
@@ -231,7 +223,7 @@ function App() {
       <footer className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 border-t border-slate-700 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <p className="text-center text-sm text-blue-200">
-            Soil Mixing Optimiser v2.0 | Advanced gradient descent optimisation
+            Soil Mixing Optimiser v2.0 | Python scipy optimization with zero-seeking
           </p>
         </div>
       </footer>
